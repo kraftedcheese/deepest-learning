@@ -1,3 +1,4 @@
 ss_synthesis.zip
 *.hdf5
+!stats/stats.hdf5
 __pycache__
