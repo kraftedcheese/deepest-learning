@@ -10,6 +10,9 @@ import h5py
 import librosa
 import config
 
+# test
+import utils 
+
 # Use python 3.9 for pyworld install
 
 def process_lab_file(filename, stft_len):
@@ -21,24 +24,31 @@ def process_lab_file(filename, stft_len):
 
     phonemes=[]
 
+    # Populate phonemes with start, end and phonote
     for pho in phos:
-        st,end,phonote=pho.split()
-        st = int(np.round(float(st)/0.005804576860324892))
+        start,end,phonote=pho.split()
+        st = int(np.round(float(start)/0.005804576860324892))
         en = int(np.round(float(end)/0.005804576860324892))
         if phonote=='pau' or phonote=='br' or phonote == 'sil':
             phonote='Sil'
         phonemes.append([st,en,phonote])
 
+    
 
     strings_p = np.zeros((phonemes[-1][1],1))
-
 
     for i in range(len(phonemes)):
         pho=phonemes[i]
         value = config.phonemas_nus.index(pho[2])
+    
         strings_p[pho[0]:pho[1]+1] = value
     return strings_p
 
+
+
+"""
+
+"""
 def main():
     singers = next(os.walk(config.NUS_DIR))[1]
 
@@ -51,11 +61,14 @@ def main():
 
         count = 0
 
+        """
+        Process Singers first
+        """
         print ("Processing singer %s" % singer)
         for wav in sing_wav_files:
 
             # Load audio file. Returns 1. audio as numpy array (float time series) and 2.sampling rate.
-            audio, _ = librosa.core.load(os.path.join(sing_dir, wav), sr=config.SAMPLE_RATE)
+            audio, fs = librosa.core.load(os.path.join(sing_dir, wav), sr=config.SAMPLE_RATE)
             # Cast audio numpy array to 64 bits
             audio = np.float64(audio)
             
@@ -69,15 +82,14 @@ def main():
 
             out_feats = utils.stft_to_feats(vocals,fs)
 
-            strings_p = process_lab_file(os.path.join(sing_dir,lf[:-4]+'.txt'), len(voc_stft))
+            strings_p = process_lab_file(os.path.join(sing_dir,wav[:-4]+'.txt'), len(voc_stft))
 
             voc_stft, out_feats, strings_p = utils.match_time([voc_stft, out_feats, strings_p])
 
 
-            hdf5_file = h5py.File(config.voice_dir+'nus_'+singer+'_sing_'+lf[:-4]+'.hdf5', mode='a')
+            hdf5_file = h5py.File(config.voice_dir+'nus_'+singer+'_sing_'+wav[:-4]+'.hdf5', mode='a')
 
             if not  "phonemes" in hdf5_file:
-
                 hdf5_file.create_dataset("phonemes", [voc_stft.shape[0]], int)
 
             hdf5_file["phonemes"][:,] = strings_p[:,0]
@@ -97,6 +109,10 @@ def main():
 
             utils.progress(count,len(sing_wav_files))
 
+        """
+        Finished process singers
+        Process Reading
+        """
         read_wav_files=[x for x in os.listdir(read_dir) if x.endswith('.wav') and not x.startswith('.')]
         print ("Processing reader %s" % singer)
         count = 0
@@ -115,6 +131,7 @@ def main():
 
             voc_stft = abs(utils.stft(vocals))
 
+
             out_feats = utils.stft_to_feats(vocals,fs)
 
             strings_p = process_lab_file(os.path.join(read_dir,lf[:-4]+'.txt'), len(voc_stft))
@@ -125,7 +142,6 @@ def main():
             hdf5_file = h5py.File(config.voice_dir+'nus_'+singer+'_read_'+lf[:-4]+'.hdf5', mode='a')
 
             if not  "phonemes" in hdf5_file:
-
                 hdf5_file.create_dataset("phonemes", [voc_stft.shape[0]], int)
 
             hdf5_file["phonemes"][:,] = strings_p[:,0]
