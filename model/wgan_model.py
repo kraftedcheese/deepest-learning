@@ -8,10 +8,13 @@ import torch.nn as nn
 import os
 from torch.autograd import Variable, grad
 from torchvision import utils
+from data_gen_testing import data_gen
+from model.process_data_model import process_inputs_per_itr
+import config
 
 CONV_STRIDE = 2
 CONV_PADDING = 1 
-CONV_KERNEL_SIZE = 4
+CONV_KERNEL_SIZE = 3#4
 
 # General Generator Conv blocks
 class EncoderConvBlock(nn.Module):
@@ -87,7 +90,7 @@ class Generator(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.enc_1 =  EncoderConvBlock(dim_in=100,
+        self.enc_1 =  EncoderConvBlock(dim_in=config.filters,
                                 dim_out=128,
                                 kernel_size=CONV_KERNEL_SIZE,
                                 stride=CONV_STRIDE,
@@ -132,7 +135,7 @@ class Generator(nn.Module):
         #                         bias=False)
 
         self.dec_2 =    FinalGeneratorConvBlock(dim_in=256,
-                                dim_out=1,
+                                dim_out=config.filters,
                                 kernel_size=CONV_KERNEL_SIZE,
                                 stride=CONV_STRIDE,
                                 padding=CONV_PADDING,
@@ -176,7 +179,7 @@ class Discriminator(nn.Module):
         #                         padding=CONV_PADDING,
         #                         bias=False)
 
-        self.d2 =    DiscriminatorConvBlock(dim_in=1,
+        self.d2 =    DiscriminatorConvBlock(dim_in=config.filters,
                                 dim_out=128,
                                 kernel_size=CONV_KERNEL_SIZE,
                                 stride=CONV_STRIDE,
@@ -199,7 +202,7 @@ class Discriminator(nn.Module):
         # final conv layer 
         self.d5 = nn.Conv2d(in_channels=512,
                     out_channels=1,
-                    kernel_size=2,
+                    kernel_size=1,
                     stride=1,
                     padding=0,
                     bias=False)
@@ -224,34 +227,34 @@ class Discriminator(nn.Module):
 """# Model"""
 
 class WGANModel(object):
-    def __init__(self, train_loader, test_loader, config):
+    def __init__(self, cli_config, voc_list, test_loader=None):
         # Data loader.
-        self.train_loader = train_loader
         self.test_loader = test_loader
+        self.voc_list = voc_list
 
         # Training configurations.
         self.batch_size = config.batch_size
-        self.num_iters = config.num_iters
+        self.num_iters = cli_config.num_iters
         # self.num_iters_decay = config.num_iters_decay
         self.learning_rate = 5e-5
         # Number of times to train the critic
-        self.n_critic = config.n_critic
+        self.n_critic = config.batch_size
 
         # processing
-        self.use_tensorboard = config.use_tensorboard
+        self.use_tensorboard = cli_config.use_tensorboard
         self.cuda = torch.cuda.is_available()
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         # Output directories
-        self.log_dir = config.log_dir
-        self.sample_dir = config.sample_dir
-        self.model_save_dir = config.model_save_dir
+        self.log_dir = cli_config.log_dir
+        self.sample_dir = cli_config.sample_dir
+        self.model_save_dir = cli_config.model_save_dir
 
         # Step sizes
-        self.log_step = config.log_step
-        self.sample_step = config.sample_step
-        self.model_save_step = config.model_save_step
-        self.lr_update_step = config.lr_update_step
+        self.log_step = cli_config.log_step
+        self.sample_step = cli_config.sample_step
+        self.model_save_step = cli_config.model_save_step
+        self.lr_update_step = cli_config.lr_update_step
 
         # Gradient Stuff
         self.lambda_term = 10
@@ -301,7 +304,7 @@ class WGANModel(object):
         self.d_optimizer.zero_grad()
   
     def train(self):
-        self.data = self.get_infinite_batches(self.train_loader)
+        self.data = self.get_infinity_batch_data()
         one = torch.tensor(1, dtype=torch.float)
         mone = one * -1
         if self.cuda:
@@ -314,14 +317,20 @@ class WGANModel(object):
                 param.requires_grad = True 
 
             self.discriminator.zero_grad()
-            
-            for critic_itr in range(self.n_critic):
-                # TODO: get and process inputs
-                images = self.data.__next__()
 
-                fake_raw_inputs = torch.rand((self.batch_size, 100, 1, 1))
-                real_raw_inputs, fake_raw_inputs = self.get_torch_variable(images), self.get_torch_variable(fake_raw_inputs)
+
+            # Im wondering if this should be here or the other side
+            # The example code puts this data gen outside the critic itr for loop
+            itr_data = self.data.__next__()
+            print(itr_data.size())
+
+            for critic_itr in range(self.n_critic):
+                
+                fake_raw_inputs = torch.rand((self.batch_size, config.filters, 1, 1))
+                real_raw_inputs, fake_raw_inputs = self.get_torch_variable(itr_data), self.get_torch_variable(fake_raw_inputs)
                 print("real_raw_input:", real_raw_inputs.size(),"fake_raw_inputs:", fake_raw_inputs.size())
+                
+                
                 # Train discriminator with real inputs
                 d_loss_real = self.discriminator(real_raw_inputs.data)
                 d_loss_real = d_loss_real.mean()
@@ -341,7 +350,7 @@ class WGANModel(object):
                 d_loss_fake.backward(one)
 
                 # Train with gradient penalty
-                gradient_penalty = self.calculate_gradient_penalty(images.data, fake_inputs.data)
+                gradient_penalty = self.calculate_gradient_penalty(itr_data.data, fake_inputs.data)
                 gradient_penalty.backward()
                 d_loss = d_loss_fake - d_loss_real + gradient_penalty
                 Wasserstein_D = d_loss_real - d_loss_fake
@@ -358,8 +367,7 @@ class WGANModel(object):
 
             # Generate fake inputs
             # TODO: get and process inputs
-            fake_raw_inputs = None
-            fake_raw_inputs = self.get_torch_variable(torch.randn(self.batch_size, 100, 1, 1))
+            fake_raw_inputs = self.get_torch_variable(torch.randn(self.batch_size,  config.filters, 1, 1))
 
             fake_inputs = self.generator(fake_raw_inputs)
             g_loss = self.discriminator(fake_inputs)
@@ -371,16 +379,12 @@ class WGANModel(object):
 
             if batch % self.model_save_step == 0:
                 self.save_model(batch)
-                if not os.path.exists('training_result_images_ours/'):
-                    os.makedirs('training_result_images_ours/')
-
-                # Denormalize images and save them in grid 8x8
-                z = self.get_torch_variable(torch.randn(100*8, 100, 1, 1))
-                samples = self.generator(z)
-                samples = samples.mul(0.5).add(0.5)
-                samples = samples.data.cpu()[:64]
-                grid = utils.make_grid(samples)
-                utils.save_image(grid, 'training_result_images_ours/img_generatori_iter_{}.png'.format(str(batch).zfill(3)))
+                
+            if batch % config.validate_every == 0:
+                # TODO: Get validation data instead
+                val_data = self.data.__next__()
+                val_loss = self.discriminator(val_data)
+                print(f'Doing validation: {batch}, val_loss: {val_loss}')
 
     
     # I did not write this, I am still trying to understand the math
@@ -416,10 +420,24 @@ class WGANModel(object):
         grad_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean() * self.lambda_term
         return grad_penalty
 
-    def get_infinite_batches(self, data_loader):
+    # def get_infinite_batches(self, data_loader):
+    #     while True:
+    #         for i, (images, _) in enumerate(data_loader):
+    #             yield images
+
+
+    def get_infinity_batch_data(self):
         while True:
-            for i, (images, _) in enumerate(data_loader):
-                yield images
+            for feats_targs, targets_f0_1, pho_targs, targets_singers in data_gen(self.voc_list):
+                # pho_targs = torch.tensor(pho_targs), torch.tensor(targets_singers)
+
+                print("feats_targs",feats_targs.shape)
+                # for i in range(int(feats_targs.shape[0])):
+                    # print("feats_targs[i]",feats_targs[i],feats_targs[i].shape)
+                    # print("pho_targs[i]",pho_targs[i],pho_targs[i])
+                    # print("targets_singers[i]",targets_singers[0])#,targets_singers.data[0].shape)
+                concated_data = process_inputs_per_itr(targets_f0_1, pho_targs, targets_singers)
+                yield concated_data
 
     def get_torch_variable(self, arg):
         if self.cuda:
