@@ -2,185 +2,19 @@
 python main.py
 '''
 #imports
-import torch
-import torch.nn as nn
-import os
-from torch.autograd import Variable, grad
-from torchvision import utils
-from data_gen_testing import data_gen
+
 from model.process_data_model import process_inputs_per_itr
+from model.modules import Generator, Discriminator
+from data_gen_testing import data_gen
+
 import config
 
-CONV_STRIDE = 2
-CONV_PADDING = 1 
-CONV_KERNEL_SIZE = 3
+import torch
+import os
+from torch.autograd import Variable, grad
+import h5py
+import numpy as np
 
-# General Generator Conv blocks
-class EncoderConvBlock(nn.Module):
-    def __init__(self, dim_in, dim_out, kernel_size, stride, padding, bias):
-        super().__init__()
-        self.conv_layer = nn.ConvTranspose2d(in_channels=dim_in,
-                                    out_channels=dim_out,
-                                    kernel_size=kernel_size,
-                                    stride=stride,
-                                    padding=padding,
-                                    bias=bias)
-        self.batch_norm = nn.BatchNorm2d(dim_out, track_running_stats=True)
-        self.relu = nn.ReLU(True)
-
-    def forward(self, x):
-        output = self.relu(self.batch_norm(self.conv_layer(x)))
-        return output
-
-# General Generator Conv blocks
-class DecoderConvBlock(nn.Module):
-    def __init__(self, dim_in, dim_out, kernel_size, stride, padding, bias):
-        super().__init__()
-
-        self.conv_layer = nn.ConvTranspose2d(in_channels=dim_in,
-                                            out_channels=dim_out,
-                                            kernel_size=kernel_size,
-                                            stride=stride,
-                                            padding=padding,
-                                            bias=bias)
-        self.batch_norm = nn.BatchNorm2d(dim_out, track_running_stats=True)
-        self.relu = nn.ReLU(True)
-
-    def forward(self, x):
-        return self.relu(self.batch_norm(self.conv_layer(x)))
-
-# The final layer of the decoder uses the Tanh activation function
-class FinalGeneratorConvBlock(nn.Module):
-    def __init__(self, dim_in, dim_out, kernel_size, stride, padding, bias):
-        super().__init__()
-
-        self.conv_layer = nn.ConvTranspose2d(in_channels=dim_in,
-                                            out_channels=dim_out,
-                                            kernel_size=kernel_size,
-                                            stride=stride,
-                                            padding=padding,
-                                            bias=bias)
-        self.relu = nn.Tanh()
-
-    def forward(self, x):
-        return self.relu(self.conv_layer(x))
-
-
-class DiscriminatorConvBlock(nn.Module):
-    def __init__(self, dim_in, dim_out, kernel_size, stride, padding, bias):
-        super().__init__()
-
-        self.conv_layer = nn.Conv2d(in_channels=dim_in,
-                                    out_channels=dim_out,
-                                    kernel_size=kernel_size,
-                                    stride=stride,
-                                    padding=padding,
-                                    bias=bias)
-        self.batch_norm = nn.BatchNorm2d(dim_out, affine=True, track_running_stats=True)
-        self.relu = nn.LeakyReLU()
-
-    def forward(self, x):
-        output = self.relu(self.batch_norm(self.conv_layer(x)))
-        return output
-
-class Generator(nn.Module):
-    """Generator network."""
-    def __init__(self):
-        super().__init__()
-
-        self.enc_1 =  EncoderConvBlock(dim_in=config.filters,
-                                dim_out=128,
-                                kernel_size=CONV_KERNEL_SIZE,
-                                stride=CONV_STRIDE,
-                                padding=CONV_PADDING,
-                                bias=False)
-
-        self.enc_2 =     EncoderConvBlock(dim_in=128,
-                                dim_out=256,
-                                kernel_size=CONV_KERNEL_SIZE,
-                                stride=CONV_STRIDE,
-                                padding=CONV_PADDING,
-                                bias=False)
-
-        self.enc_3 =    EncoderConvBlock(dim_in=256,
-                                dim_out=512,
-                                kernel_size=CONV_KERNEL_SIZE,
-                                stride=CONV_STRIDE,
-                                padding=CONV_PADDING,
-                                bias=False)
-        
-
-       
-        self.dec_1 =     DecoderConvBlock(dim_in=512,
-                                dim_out=256,
-                                kernel_size=CONV_KERNEL_SIZE,
-                                stride=CONV_STRIDE,
-                                padding=CONV_PADDING,
-                                bias=False)
-
-        self.dec_2 =    FinalGeneratorConvBlock(dim_in=256,
-                                dim_out=config.filters,
-                                kernel_size=CONV_KERNEL_SIZE,
-                                stride=CONV_STRIDE,
-                                padding=CONV_PADDING,
-                                bias=False)
-        
-    def forward(self, x):
-        x = self.enc_1(x)
-        print("gen main 1", x.size())
-        x = self.enc_2(x)
-        print("gen main 2", x.size())
-        x = self.enc_3(x)
-        print("gen main 3", x.size())
-        x = self.dec_1(x)
-        print("gen main 4", x.size())
-        x = self.dec_2(x)
-        print("gen main 7", x.size())
-        return x
-
-class Discriminator(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-        self.d2 =    DiscriminatorConvBlock(dim_in=config.filters,
-                                dim_out=128,
-                                kernel_size=CONV_KERNEL_SIZE,
-                                stride=CONV_STRIDE,
-                                padding=CONV_PADDING,
-                                bias=False)
-
-        self.d3=    DiscriminatorConvBlock(dim_in=128,
-                                dim_out=256,
-                                kernel_size=CONV_KERNEL_SIZE,
-                                stride=CONV_STRIDE,
-                                padding=CONV_PADDING,
-                                bias=False)
-
-        self.d4=    DiscriminatorConvBlock(dim_in=256,
-                                dim_out=512,
-                                kernel_size=CONV_KERNEL_SIZE,
-                                stride=CONV_STRIDE,
-                                padding=CONV_PADDING,
-                                bias=False)
-        # final conv layer 
-        self.d5 = nn.Conv2d(in_channels=512,
-                    out_channels=1,
-                    kernel_size=1,
-                    stride=1,
-                    padding=0,
-                    bias=False)
-
-    def forward(self, x):
-        x = self.d2(x)
-        print("dis 2", x.size())
-        x = self.d3(x)
-        print("dis 3", x.size())
-        x = self.d4(x)
-        print("dis 4", x.size())
-        x = self.d5(x)
-        print("dis 5", x.size())
-
-        return x
 
 # Model
 class WGANModel(object):
@@ -191,6 +25,7 @@ class WGANModel(object):
 
         # Training configurations.
         self.batch_size = config.batch_size
+        self.start_batch = 0
         # self.num_iters_decay = config.num_iters_decay
         self.learning_rate = 5e-5
         # Number of times to train the critic
@@ -244,9 +79,9 @@ class WGANModel(object):
         g_path = os.path.join(self.model_save_dir, '{}-G.ckpt'.format(itr))
         d_path = os.path.join(self.model_save_dir, '{}-D.ckpt'.format(itr))
        
-
         self.generator.load_state_dict(torch.load(g_path, map_location=lambda storage, loc: storage))
         self.discriminator.load_state_dict(torch.load(d_path, map_location=lambda storage, loc: storage))
+        self.start_batch = itr
 
     def reset_grad(self):
         self.g_optimizer.zero_grad()
@@ -260,7 +95,7 @@ class WGANModel(object):
             one = one.cuda(self.cuda_index)
             mone = mone.cuda(self.cuda_index)
         
-        for batch in range(config.num_epochs):
+        for batch in range(self.start_batch, config.num_epochs):
             # Requires grad, Generator requires_grad = False
             for param in self.discriminator.parameters():
                 param.requires_grad = True 
@@ -270,8 +105,9 @@ class WGANModel(object):
 
             # Im wondering if this should be here or the other side
             # The example code puts this data gen outside the critic itr for loop
+            print("Getting data...")
             itr_data = self.data.__next__()
-            print(itr_data.size())
+            # print(itr_data.size())
 
             for critic_itr in range(self.n_critic):
                 
@@ -333,8 +169,8 @@ class WGANModel(object):
                 # TODO: Get validation data instead
                 val_data = self.data.__next__()
                 val_loss = self.discriminator(val_data)
+                val_loss = val_loss.mean()
                 print(f'Doing validation: {batch}, val_loss: {val_loss}')
-
     
     # I did not write this, I am still trying to understand the math
     def calculate_gradient_penalty(self, real_images, fake_images):

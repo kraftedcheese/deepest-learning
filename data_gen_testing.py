@@ -5,7 +5,7 @@ import h5py
 import json
 import torch
 
-def data_gen(voc_list, mode = 'Train', sec_mode = 0):
+def data_gen_jsons(voc_list, mode = 'Train', sec_mode = 0):
     targets_f0_1 = json.load(open("processed_jsons\\f0.json",))
     targets_f0_1 = np.asarray(targets_f0_1)
     feats_targs = json.load(open("processed_jsons\\feats_targs.json",))
@@ -24,7 +24,7 @@ def data_gen(voc_list, mode = 'Train', sec_mode = 0):
 
 # Gets a fixed number of files to process based on the batch size
 # Then aggregates/concats TO INTERNAL LIST/state over entire dataset
-def data_gen_ori(voc_list, mode = 'Train', sec_mode = 0):
+def data_gen(voc_list, mode = 'Train', sec_mode = 0):
 
     # val_list = ['nus_MCUR_sing_04.hdf5', 'nus_ADIZ_read_01.hdf5', 'nus_JLEE_sing_05.hdf5','nus_JTAN_read_07.hdf5' ]
 
@@ -98,7 +98,7 @@ def data_gen_ori(voc_list, mode = 'Train', sec_mode = 0):
                     pho_target = np.array(voc_file["phonemes"])
                     singer_name = voc_to_open.split('_')[1]
                     singer_index = config.singers.index(singer_name)
-                    print("singer", singer_name, singer_index)
+                    # print("singer", singer_name, singer_index)
             else:
                 Flag = False
 
@@ -107,7 +107,7 @@ def data_gen_ori(voc_list, mode = 'Train', sec_mode = 0):
                     # randomly get a WINDOW of 128 frames for each file.
                     # each 128 frames is a sample
                     voc_idx = np.random.randint(0,len(feats)-config.max_phr_len)
-                    print("start", voc_idx, "end", voc_idx+config.max_phr_len)
+                    # print("start", voc_idx, "end", voc_idx+config.max_phr_len)
                     targets_f0_1.append(f0_nor[voc_idx:voc_idx+config.max_phr_len])
                     if Flag:
                         pho_targs.append(pho_target[voc_idx:voc_idx+config.max_phr_len])
@@ -118,7 +118,8 @@ def data_gen_ori(voc_list, mode = 'Train', sec_mode = 0):
         targets_f0_1 = np.expand_dims(np.array(targets_f0_1), -1)
 
         feats_targs = np.array(feats_targs)
-
-        assert feats_targs.max()<=1.0 and feats_targs.min()>=0.0
+        if feats_targs.max()>1.0 or feats_targs.min()<0.0:
+            continue
+        # assert feats_targs.max()<=1.0 and feats_targs.min()>=0.0
 
         yield feats_targs, targets_f0_1, np.array(pho_targs), np.array(targets_singers)
