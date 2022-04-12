@@ -122,3 +122,19 @@ use_gan = False
 gan_lr = 0.001
 
 dtype = tf.float32
+
+
+# Learning rates
+learning_rate = 1000
+
+# Steps
+lr_update_step =10
+model_save_step = 50
+sample_step = 50
+n_critic = 100
+
+# Directories
+log_dir = "log_dir"
+log_step = 10
+model_save_dir = "model_save_dir"
+sample_dir = "sample_dir"

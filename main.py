@@ -1,9 +1,8 @@
-from parse_args_utils import parse_args
 from model.wgan_model import WGANModel
 import config
 import os
 
-def main(args):
+def main():
     voc_list = [x for x in os.listdir(config.voice_dir) if 
     x.endswith('.hdf5') and x.startswith('nus') and 
     not x == 'nus_MCUR_sing_04.hdf5' and 
@@ -11,14 +10,8 @@ def main(args):
     not x == 'nus_JLEE_sing_05.hdf5' and 
     not x == 'nus_JTAN_read_07.hdf5']
 
-    # train_loader, test_loader = get_data_loader(args)
-    model = WGANModel(args, voc_list)
-    # Load datasets to train and test loaders
-    #feature_extraction = FeatureExtractionTest(train_loader, test_loader, args.cuda, args.batch_size)
-
-    # Start model training
-    if args.is_train == 'True':
-        model.train()
+    model = WGANModel(voc_list)
+    model.train()
 
     # start evaluating on test data
     # else:
@@ -28,7 +21,6 @@ def main(args):
 
 
 if __name__ == '__main__':
-    args = parse_args()
-    main(args)
+    main()
 
 

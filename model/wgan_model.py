@@ -1,8 +1,7 @@
 '''
-python main.py --model=WGAN-GP --num_iters=100 --n_critic=50 --ours=True --dataroot="data"
+python main.py
 '''
 #imports
-from numpy import true_divide
 import torch
 import torch.nn as nn
 import os
@@ -14,7 +13,7 @@ import config
 
 CONV_STRIDE = 2
 CONV_PADDING = 1 
-CONV_KERNEL_SIZE = 3#4
+CONV_KERNEL_SIZE = 3
 
 # General Generator Conv blocks
 class EncoderConvBlock(nn.Module):
@@ -61,7 +60,6 @@ class FinalGeneratorConvBlock(nn.Module):
                                             stride=stride,
                                             padding=padding,
                                             bias=bias)
-        # self.batch_norm = nn.BatchNorm2d(dim_out, affine=True, track_running_stats=True)
         self.relu = nn.Tanh()
 
     def forward(self, x):
@@ -120,37 +118,14 @@ class Generator(nn.Module):
                                 padding=CONV_PADDING,
                                 bias=False)
 
-        # self.main_5 =    DecoderConvBlock(dim_in=256,
-        #                         dim_out=128,
-        #                         kernel_size=CONV_KERNEL_SIZE,
-        #                         stride=CONV_STRIDE,
-        #                         padding=CONV_PADDING,
-        #                         bias=False)
-
-        # self.main_6=     DecoderConvBlock(dim_in=128,
-        #                         dim_out=64,
-        #                         kernel_size=CONV_KERNEL_SIZE,
-        #                         stride=1,
-        #                         padding=0,
-        #                         bias=False)
-
         self.dec_2 =    FinalGeneratorConvBlock(dim_in=256,
                                 dim_out=config.filters,
                                 kernel_size=CONV_KERNEL_SIZE,
                                 stride=CONV_STRIDE,
                                 padding=CONV_PADDING,
                                 bias=False)
-
-            # FinalGeneratorConvBlock(dim_in=32,
-            #                     dim_out=1, # Change this as needed
-            #                     kernel_size=2,
-            #                     stride=CONV_STRIDE,
-            #                     padding=1,
-            #                     bias=False),
         
     def forward(self, x):
-        # encoder_output = self.encoder(x)
-        # decoder_output = self.decoder(encoder_output)
         x = self.enc_1(x)
         print("gen main 1", x.size())
         x = self.enc_2(x)
@@ -159,10 +134,6 @@ class Generator(nn.Module):
         print("gen main 3", x.size())
         x = self.dec_1(x)
         print("gen main 4", x.size())
-        # x = self.main_5(x)
-        # print("gen main 5", x.size())
-        # x = self.main_6(x)
-        # print("gen main 6", x.size())
         x = self.dec_2(x)
         print("gen main 7", x.size())
         return x
@@ -170,14 +141,6 @@ class Generator(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self):
         super().__init__()
-        # self.disciminator_block = nn.Sequential(
-            # Dim-in might change
-        # self.d1=    DiscriminatorConvBlock(dim_in=1, # Change this as needed
-        #                         dim_out=64,
-        #                         kernel_size=CONV_KERNEL_SIZE,
-        #                         stride=CONV_STRIDE,
-        #                         padding=CONV_PADDING,
-        #                         bias=False)
 
         self.d2 =    DiscriminatorConvBlock(dim_in=config.filters,
                                 dim_out=128,
@@ -206,62 +169,52 @@ class Discriminator(nn.Module):
                     stride=1,
                     padding=0,
                     bias=False)
-        # )
 
     def forward(self, x):
-        # x = self.d1(x)
-        # print("dis 1", x.size())
         x = self.d2(x)
         print("dis 2", x.size())
         x = self.d3(x)
         print("dis 3", x.size())
-
         x = self.d4(x)
         print("dis 4", x.size())
-
         x = self.d5(x)
         print("dis 5", x.size())
 
         return x
 
-"""# Model"""
-
+# Model
 class WGANModel(object):
-    def __init__(self, cli_config, voc_list, test_loader=None):
+    def __init__(self, voc_list, test_loader=None):
         # Data loader.
         self.test_loader = test_loader
         self.voc_list = voc_list
 
         # Training configurations.
         self.batch_size = config.batch_size
-        self.num_iters = cli_config.num_iters
         # self.num_iters_decay = config.num_iters_decay
         self.learning_rate = 5e-5
         # Number of times to train the critic
         self.n_critic = config.batch_size
 
         # processing
-        self.use_tensorboard = cli_config.use_tensorboard
         self.cuda = torch.cuda.is_available()
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         # Output directories
-        self.log_dir = cli_config.log_dir
-        self.sample_dir = cli_config.sample_dir
-        self.model_save_dir = cli_config.model_save_dir
+        self.log_dir = config.log_dir
+        self.sample_dir = config.sample_dir
+        self.model_save_dir = config.model_save_dir
 
         # Step sizes
-        self.log_step = cli_config.log_step
-        self.sample_step = cli_config.sample_step
-        self.model_save_step = cli_config.model_save_step
-        self.lr_update_step = cli_config.lr_update_step
+        self.log_step = config.log_step
+        self.sample_step = config.sample_step
+        self.model_save_step = config.model_save_step
+        self.lr_update_step = config.lr_update_step
 
         # Gradient Stuff
         self.lambda_term = 10
 
         self.init_gan_blocks()
-        if self.use_tensorboard:
-            self.init_tensorboard_logger()
 
     # Init generator and discriminator
     def init_gan_blocks(self):
@@ -295,10 +248,6 @@ class WGANModel(object):
         self.generator.load_state_dict(torch.load(g_path, map_location=lambda storage, loc: storage))
         self.discriminator.load_state_dict(torch.load(d_path, map_location=lambda storage, loc: storage))
 
-    def init_tensorboard_logger(self):
-        # self.logger = Logger(self.log_dir)
-        pass
-
     def reset_grad(self):
         self.g_optimizer.zero_grad()
         self.d_optimizer.zero_grad()
@@ -311,7 +260,7 @@ class WGANModel(object):
             one = one.cuda(self.cuda_index)
             mone = mone.cuda(self.cuda_index)
         
-        for batch in range(self.num_iters):
+        for batch in range(config.num_epochs):
             # Requires grad, Generator requires_grad = False
             for param in self.discriminator.parameters():
                 param.requires_grad = True 
@@ -377,7 +326,7 @@ class WGANModel(object):
             self.g_optimizer.step()
             print(f'Generator Training Itr: {batch}, g_loss: {g_loss}')
 
-            if batch % self.model_save_step == 0:
+            if batch % config.save_every == 0:
                 self.save_model(batch)
                 
             if batch % config.validate_every == 0:
@@ -420,22 +369,11 @@ class WGANModel(object):
         grad_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean() * self.lambda_term
         return grad_penalty
 
-    # def get_infinite_batches(self, data_loader):
-    #     while True:
-    #         for i, (images, _) in enumerate(data_loader):
-    #             yield images
-
 
     def get_infinity_batch_data(self):
         while True:
             for feats_targs, targets_f0_1, pho_targs, targets_singers in data_gen(self.voc_list):
-                # pho_targs = torch.tensor(pho_targs), torch.tensor(targets_singers)
-
                 print("feats_targs",feats_targs.shape)
-                # for i in range(int(feats_targs.shape[0])):
-                    # print("feats_targs[i]",feats_targs[i],feats_targs[i].shape)
-                    # print("pho_targs[i]",pho_targs[i],pho_targs[i])
-                    # print("targets_singers[i]",targets_singers[0])#,targets_singers.data[0].shape)
                 concated_data = process_inputs_per_itr(targets_f0_1, pho_targs, targets_singers)
                 yield concated_data
 
