@@ -10,7 +10,9 @@ import config
 class ProcessDataModel(nn.Module):
     def __init__(self, dim_in, dim_out):
         super().__init__()
+        # Linear is the equivalent of pytorch's dense layer. Kaiming Uniform is Pytorch's default initialization.
         self.linear_layer = nn.Linear(in_features=dim_in, out_features=dim_out)
+        nn.init.normal_(self.linear_layer.weight, std=0.02)
         self.batch_norm = nn.BatchNorm2d(dim_out)
 
     def forward(self, x):
@@ -37,7 +39,7 @@ def process_inputs_per_itr(f0, phos, singer_label):
     process_data_mod = ProcessDataModel(int(f0.shape[1]), config.filters)
 
     f0 = process_data_mod(f0)
-    phos =process_data_mod(phos)
+    phos = process_data_mod(phos)
     
     singer_label = singer_label.view(-1, 1).tile((1,config.max_phr_len)).float()
     print("singer label reshaped", singer_label.size(), singer_label)
