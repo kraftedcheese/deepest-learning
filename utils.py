@@ -303,9 +303,10 @@ def overlapadd(fbatch,nchunks,overlap=int(config.max_phr_len/2)):
     window = np.concatenate((window,window[::-1]))
     window = np.repeat(np.expand_dims(window, axis=1),input_size,axis=1)
     
-
-    sep = np.zeros((int(nchunks*(time_context-overlap)+time_context),input_size))
-
+    try:
+        sep = np.zeros((int(nchunks*(time_context-overlap)+time_context),input_size))
+    except:
+        return
     
     i=0
     start=0 
