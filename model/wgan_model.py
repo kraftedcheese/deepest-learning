@@ -102,19 +102,14 @@ class WGANModel(object):
 
             self.discriminator.zero_grad()
 
-
-            # Im wondering if this should be here or the other side
-            # The example code puts this data gen outside the critic itr for loop
             print("Getting data...")
             itr_data = self.data.__next__()
-            # print(itr_data.size())
 
             for critic_itr in range(self.n_critic):
-                
-                fake_raw_inputs = torch.rand((self.batch_size, config.filters, 1, 1))
-                real_raw_inputs, fake_raw_inputs = self.get_torch_variable(itr_data), self.get_torch_variable(fake_raw_inputs)
-                print("real_raw_input:", real_raw_inputs.size(),"fake_raw_inputs:", fake_raw_inputs.size())
-                
+                # fake_raw_inputs = torch.rand((self.batch_size, config.filters, 1, 1))
+                # real_raw_inputs, fake_raw_inputs = self.get_torch_variable(itr_data), self.get_torch_variable(fake_raw_inputs)
+                real_raw_inputs = self.get_torch_variable(itr_data)
+                print("real_raw_input:", real_raw_inputs.size())
                 
                 # Train discriminator with real inputs
                 d_loss_real = self.discriminator(real_raw_inputs.data)
@@ -124,9 +119,7 @@ class WGANModel(object):
                 print("first pass through discriminator:", d_loss_real)
 
                 # Generate fake inputs
-                # TODO: get and process inputs
-                fake_inputs = self.generator(fake_raw_inputs)
-                print("preprocessed data to critic size:",fake_raw_inputs.size())
+                fake_inputs = self.generator(real_raw_inputs)
                 print("output of generator size:",fake_inputs.size())
 
                 # Train discriminator on fake inputs
@@ -151,10 +144,7 @@ class WGANModel(object):
             # compute loss with fake images
 
             # Generate fake inputs
-            # TODO: get and process inputs
-            fake_raw_inputs = self.get_torch_variable(torch.randn(self.batch_size,  config.filters, 1, 1))
-
-            fake_inputs = self.generator(fake_raw_inputs)
+            fake_inputs = self.generator(real_raw_inputs)
             g_loss = self.discriminator(fake_inputs)
             g_loss = g_loss.mean()
             g_loss.backward(mone)
