@@ -15,9 +15,6 @@ log_dir = './log/'
 
 
 
-
-
-
 data_log = './log/data_log.log'
 
 

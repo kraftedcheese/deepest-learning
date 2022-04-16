@@ -3,6 +3,7 @@ python main.py
 '''
 #imports
 
+from imp import reload
 from model.process_data_model import process_inputs_per_itr
 from model.modules import Generator, Discriminator
 from data_gen_testing import data_gen
@@ -19,7 +20,7 @@ import numpy as np
 
 # Model
 class WGANModel(object):
-    def __init__(self, voc_list, test_loader=None):
+    def __init__(self, voc_list, reload_model, test_loader=None):
         # Data loader.
         self.test_loader = test_loader
         self.voc_list = voc_list
@@ -50,13 +51,16 @@ class WGANModel(object):
         # Gradient Stuff
         self.lambda_term = 10
 
-        self.init_gan_blocks()
+        self.init_gan_blocks(reload_model)
 
     # Init generator and discriminator
-    def init_gan_blocks(self):
+    def init_gan_blocks(self, reload_model):
         self.generator = Generator()
         self.discriminator = Discriminator()
 
+        if reload_model>0:
+            self.restore_model(reload_model)
+            
         self.g_optimizer = torch.optim.RMSprop(self.generator.parameters(), self.learning_rate)
         self.d_optimizer = torch.optim.RMSprop(self.discriminator.parameters(), self.learning_rate)
 
@@ -93,8 +97,8 @@ class WGANModel(object):
         one = torch.tensor(1, dtype=torch.float)
         mone = one * -1
         if self.cuda:
-            one = one.cuda(self.cuda_index)
-            mone = mone.cuda(self.cuda_index)
+            one = one.cuda(self.device)
+            mone = mone.cuda(self.device)
         
         for batch in range(self.start_batch, config.num_epochs):
             # Requires grad, Generator requires_grad = False
@@ -103,19 +107,15 @@ class WGANModel(object):
 
             self.discriminator.zero_grad()
 
-
-            # Im wondering if this should be here or the other side
-            # The example code puts this data gen outside the critic itr for loop
             print("Getting data...")
             itr_data = self.data.__next__()
-            # print(itr_data.size())
 
             for critic_itr in range(self.n_critic):
-                
-                fake_raw_inputs = torch.rand((self.batch_size, config.filters, 1, 1))
-                real_raw_inputs, fake_raw_inputs = self.get_torch_variable(itr_data), self.get_torch_variable(fake_raw_inputs)
-                print("real_raw_input:", real_raw_inputs.size(),"fake_raw_inputs:", fake_raw_inputs.size())
-                
+                print("epoch",batch,"critic itr:", critic_itr)
+                # fake_raw_inputs = torch.rand((self.batch_size, config.filters, 1, 1))
+                # real_raw_inputs, fake_raw_inputs = self.get_torch_variable(itr_data), self.get_torch_variable(fake_raw_inputs)
+                real_raw_inputs = self.get_torch_variable(itr_data)
+                print("real_raw_input:", real_raw_inputs.size())
                 
                 # Train discriminator with real inputs
                 d_loss_real = self.discriminator(real_raw_inputs.data)
@@ -125,10 +125,8 @@ class WGANModel(object):
                 print("first pass through discriminator:", d_loss_real)
 
                 # Generate fake inputs
-                # TODO: get and process inputs
-                fake_inputs = self.generator(fake_raw_inputs)
-                print(fake_raw_inputs.size())
-                print(fake_inputs.size())
+                fake_inputs = self.generator(real_raw_inputs)
+                print("output of generator size:",fake_inputs.size())
 
                 # Train discriminator on fake inputs
                 d_loss_fake = self.discriminator(fake_inputs)
@@ -136,7 +134,7 @@ class WGANModel(object):
                 d_loss_fake.backward(one)
 
                 # Train with gradient penalty
-                gradient_penalty = self.calculate_gradient_penalty(itr_data.data, fake_inputs.data)
+                gradient_penalty = self.calculate_gradient_penalty(real_raw_inputs, fake_inputs.data)
                 gradient_penalty.backward()
                 d_loss = d_loss_fake - d_loss_real + gradient_penalty
                 Wasserstein_D = d_loss_real - d_loss_fake
@@ -152,10 +150,7 @@ class WGANModel(object):
             # compute loss with fake images
 
             # Generate fake inputs
-            # TODO: get and process inputs
-            fake_raw_inputs = self.get_torch_variable(torch.randn(self.batch_size,  config.filters, 1, 1))
-
-            fake_inputs = self.generator(fake_raw_inputs)
+            fake_inputs = self.generator(real_raw_inputs)
             g_loss = self.discriminator(fake_inputs)
             g_loss = g_loss.mean()
             g_loss.backward(mone)
@@ -163,30 +158,29 @@ class WGANModel(object):
             self.g_optimizer.step()
             print(f'Generator Training Itr: {batch}, g_loss: {g_loss}')
 
-            if batch % config.save_every == 0:
+            if (batch + 1) % config.save_every == 0:
                 self.save_model(batch)
                 
             if batch % config.validate_every == 0:
-                # TODO: Get validation data instead
-                val_data = self.data.__next__()
+                val_data = self.get_torch_variable(self.data.__next__())
                 val_loss = self.discriminator(val_data)
                 val_loss = val_loss.mean()
                 print(f'Doing validation: {batch}, val_loss: {val_loss}')
     
     # I did not write this, I am still trying to understand the math
     def calculate_gradient_penalty(self, real_images, fake_images):
-        eta = torch.FloatTensor(self.batch_size,1,1,1).uniform_(0,1)
+        eta = torch.FloatTensor(self.batch_size,1,1,1).uniform_(0,1).cuda(self.device)
         eta = eta.expand(self.batch_size, real_images.size(1), real_images.size(2), real_images.size(3))
         if self.cuda:
-            eta = eta.cuda(self.cuda_index)
-        else: 
+            eta = eta.cuda(self.device)
+        else:
             eta = eta
         print("calculate grad penalty", "real_images", real_images.size(), "fake_images", fake_images.size())
 
         interpolated = eta * real_images + ((1 - eta) * fake_images)
 
         if self.cuda:
-            interpolated = interpolated.cuda(self.cuda_index)
+            interpolated = interpolated.cuda(self.device)
         else:
             interpolated = interpolated
 
@@ -199,7 +193,7 @@ class WGANModel(object):
         # calculate gradients of probabilities with respect to examples
         gradients = grad(outputs=prob_interpolated, inputs=interpolated,
                                grad_outputs=torch.ones(
-                                   prob_interpolated.size()).cuda(self.cuda_index) if self.cuda else torch.ones(
+                                   prob_interpolated.size()).cuda(self.device) if self.cuda else torch.ones(
                                    prob_interpolated.size()),
                                create_graph=True, retain_graph=True)[0]
 
@@ -216,7 +210,7 @@ class WGANModel(object):
 
     def get_torch_variable(self, arg):
         if self.cuda:
-            return Variable(arg).cuda(self.cuda_index)
+            return Variable(arg).cuda(self.device)
         else:
             return Variable(arg)
     
