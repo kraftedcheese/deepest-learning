@@ -3,6 +3,7 @@ python main.py
 '''
 #imports
 
+from imp import reload
 from model.process_data_model import process_inputs_per_itr
 from model.modules import Generator, Discriminator
 from data_gen_testing import data_gen
@@ -18,7 +19,7 @@ import numpy as np
 
 # Model
 class WGANModel(object):
-    def __init__(self, voc_list, test_loader=None):
+    def __init__(self, voc_list, reload_model, test_loader=None):
         # Data loader.
         self.test_loader = test_loader
         self.voc_list = voc_list
@@ -49,13 +50,16 @@ class WGANModel(object):
         # Gradient Stuff
         self.lambda_term = 10
 
-        self.init_gan_blocks()
+        self.init_gan_blocks(reload_model)
 
     # Init generator and discriminator
-    def init_gan_blocks(self):
+    def init_gan_blocks(self, reload_model):
         self.generator = Generator()
         self.discriminator = Discriminator()
 
+        if reload_model>0:
+            self.restore_model(reload_model)
+            
         self.g_optimizer = torch.optim.RMSprop(self.generator.parameters(), self.learning_rate)
         self.d_optimizer = torch.optim.RMSprop(self.discriminator.parameters(), self.learning_rate)
 
@@ -106,6 +110,7 @@ class WGANModel(object):
             itr_data = self.data.__next__()
 
             for critic_itr in range(self.n_critic):
+                print("epoch",batch,"critic itr:", critic_itr)
                 # fake_raw_inputs = torch.rand((self.batch_size, config.filters, 1, 1))
                 # real_raw_inputs, fake_raw_inputs = self.get_torch_variable(itr_data), self.get_torch_variable(fake_raw_inputs)
                 real_raw_inputs = self.get_torch_variable(itr_data)
@@ -152,11 +157,10 @@ class WGANModel(object):
             self.g_optimizer.step()
             print(f'Generator Training Itr: {batch}, g_loss: {g_loss}')
 
-            if batch % config.save_every == 0:
+            if (batch + 1) % config.save_every == 0:
                 self.save_model(batch)
                 
             if batch % config.validate_every == 0:
-                # TODO: Get validation data instead
                 val_data = self.get_torch_variable(self.data.__next__())
                 val_loss = self.discriminator(val_data)
                 val_loss = val_loss.mean()
