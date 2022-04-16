@@ -408,6 +408,17 @@ def match_time(feat_list):
         feat_list = new_list
     return feat_list
 
+def plot_features(self, feats, out_feats):
+    # Used in generation to plot the generated spectrogram 
+    plt.figure(1)
+    ax1 = plt.subplot(211)
+    plt.imshow(feats[:,:-2].T,aspect='auto',origin='lower')
+    ax1.set_title("Ground Truth STFT", fontsize=10)
+    ax3 =plt.subplot(212, sharex = ax1, sharey = ax1)
+    ax3.set_title("Output STFT", fontsize=10)
+    plt.imshow(out_feats.T,aspect='auto',origin='lower')
+    plt.show()
+
 def main():
     out_feats = input_to_feats(config.NUS_DIR+'/ADIZ/read/01.wav', mode=1)
     feats_to_audio(out_feats, 'test')
