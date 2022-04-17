@@ -15,7 +15,3 @@ not x == 'nus_JTAN_read_07.hdf5']
 model = WGANModel(voc_list, reload_model=749)
 
 model.test_file_hdf5("nus_ADIZ_sing_01.hdf5", "ADIZ")
-
-
-
-

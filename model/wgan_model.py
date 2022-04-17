@@ -243,22 +243,15 @@ class WGANModel(object):
         stat_file.close()
 
         with h5py.File(config.voice_dir + file_name) as feat_file:
-
             feats = np.array(feat_file['feats'])[()]
-
             pho_target = np.array(feat_file["phonemes"])[()]
 
         f0 = feats[:,-2]
-
         med = np.median(f0[f0 > 0])
-
         f0[f0==0] = med
-
         f0_nor = (f0 - min_feat[-2])/(max_feat[-2]-min_feat[-2])
 
-
         return feats, f0_nor, pho_target
-
 
 
     def process_file(self, f0_nor, pho_target, singer_index):
@@ -281,11 +274,8 @@ class WGANModel(object):
             out_batches_feats.append(generated_flat.detach().numpy())
 
         out_batches_feats = np.array(out_batches_feats)
-
         out_batches_feats = utils.overlapadd(out_batches_feats,nchunks_in)
-
         out_batches_feats = out_batches_feats/2+0.5
-
         out_batches_feats = out_batches_feats*(max_feat[:-2] - min_feat[:-2]) + min_feat[:-2]
 
         return out_batches_feats
