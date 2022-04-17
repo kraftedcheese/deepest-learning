@@ -2,5 +2,5 @@ ss_synthesis*
 *.hdf5
 !stats/stats.hdf5
 __pycache__
-.history
 model_save_dir/*
+.history

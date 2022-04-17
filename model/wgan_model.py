@@ -175,6 +175,7 @@ class WGANModel(object):
             eta = eta.cuda(self.device)
         else:
             eta = eta
+        
         print("calculate grad penalty", "real_images", real_images.size(), "fake_images", fake_images.size())
 
         interpolated = eta * real_images + ((1 - eta) * fake_images)
