@@ -79,7 +79,7 @@ noise_threshold = 0.4 #0.7 for the unnormalized features
 pred_mode = 'all'
 
 # Hyperparameters
-num_epochs = 950
+num_epochs = 1 # TODO 950
 
 batches_per_epoch_train = 100
 batches_per_epoch_val = 10
@@ -128,7 +128,7 @@ learning_rate = 1000
 lr_update_step =10
 model_save_step = 50
 sample_step = 50
-n_critic = 100
+n_critic = 1# TODO 100
 
 # Directories
 log_dir = "log_dir"
