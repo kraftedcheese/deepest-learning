@@ -1,4 +1,4 @@
-
+# This is a test script for the conversion function. Some of this functionality might be merged with main.py later
 import config
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,7 +12,7 @@ not x == 'nus_ADIZ_read_01.hdf5' and
 not x == 'nus_JLEE_sing_05.hdf5' and 
 not x == 'nus_JTAN_read_07.hdf5']
 
-model = WGANModel(voc_list, reload_model=150)
+model = WGANModel(voc_list, reload_model=749)
 
 model.test_file_hdf5("nus_ADIZ_sing_01.hdf5", "ADIZ")
 

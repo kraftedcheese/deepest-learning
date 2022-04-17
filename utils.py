@@ -409,7 +409,7 @@ def match_time(feat_list):
         feat_list = new_list
     return feat_list
 
-def plot_features(self, feats, out_feats):
+def plot_features(feats, out_feats):
     # Used in generation to plot the generated spectrogram 
     plt.figure(1)
     ax1 = plt.subplot(211)

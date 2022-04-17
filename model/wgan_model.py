@@ -274,11 +274,11 @@ class WGANModel(object):
 
         for in_batch_f0, in_batch_pho in zip(in_batches_f0, in_batches_pho) :
             speaker = np.repeat(singer_index, config.batch_size)
-            # feed_dict = { self.f0_placeholder: in_batch_f0,self.phoneme_labels: in_batch_pho, self.singer_labels:speaker, self.is_train: False}
             inputs = process_inputs_per_itr(in_batch_f0, in_batch_pho, speaker)
             input_tensor = self.get_torch_variable(inputs)
             generated = self.generator(input_tensor)
-            out_batches_feats.append(generated.detach().numpy())
+            generated_flat = torch.flatten(generated, start_dim=2)
+            out_batches_feats.append(generated_flat.detach().numpy())
 
         out_batches_feats = np.array(out_batches_feats)
 
@@ -289,15 +289,3 @@ class WGANModel(object):
         out_batches_feats = out_batches_feats*(max_feat[:-2] - min_feat[:-2]) + min_feat[:-2]
 
         return out_batches_feats
-
-
-# if __name__ == "__main__":
-#     voc_list = [x for x in os.listdir(config.voice_dir) if 
-#         x.endswith('.hdf5') and x.startswith('nus') and 
-#         not x == 'nus_MCUR_sing_04.hdf5' and 
-#         not x == 'nus_ADIZ_read_01.hdf5' and 
-#         not x == 'nus_JLEE_sing_05.hdf5' and 
-#         not x == 'nus_JTAN_read_07.hdf5']
-    
-#     gen = WGANModel(voc_list, reload_model=150)
-#     gen.test_file_hdf5("nus_ADIZ_sing_01", "ADIZ")
