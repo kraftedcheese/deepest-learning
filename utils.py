@@ -303,9 +303,7 @@ def overlapadd(fbatch,nchunks,overlap=int(config.max_phr_len/2)):
     window = np.concatenate((window,window[::-1]))
     window = np.repeat(np.expand_dims(window, axis=1),input_size,axis=1)
     
-
     sep = np.zeros((int(nchunks*(time_context-overlap)+time_context),input_size))
-
     
     i=0
     start=0 
@@ -407,6 +405,17 @@ def match_time(feat_list):
             new_list.append(feat_list[i][:min_time])
         feat_list = new_list
     return feat_list
+
+def plot_features(feats, out_feats):
+    # Used in generation to plot the generated spectrogram 
+    plt.figure(1)
+    ax1 = plt.subplot(211)
+    plt.imshow(feats[:,:-2].T,aspect='auto',origin='lower')
+    ax1.set_title("Ground Truth STFT", fontsize=10)
+    ax3 =plt.subplot(212, sharex = ax1, sharey = ax1)
+    ax3.set_title("Output STFT", fontsize=10)
+    plt.imshow(out_feats.T,aspect='auto',origin='lower')
+    plt.show()
 
 def main():
     out_feats = input_to_feats(config.NUS_DIR+'/ADIZ/read/01.wav', mode=1)

@@ -79,7 +79,7 @@ noise_threshold = 0.4 #0.7 for the unnormalized features
 pred_mode = 'all'
 
 # Hyperparameters
-num_epochs = 2050 #950
+num_epochs = 950
 
 batches_per_epoch_train = 100
 batches_per_epoch_val = 10
@@ -112,8 +112,8 @@ rec_field = 2**wavenet_layers
 wavenet_filters = 64
 
 print_every = 1
-save_every = 1#5 # 50
-validate_every = 1#5 #20
+save_every = 10
+validate_every = 10
 
 use_gan = False
 gan_lr = 0.001
