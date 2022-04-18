@@ -8,6 +8,7 @@ from model.modules import Generator, Discriminator
 from data_gen_testing import data_gen
 
 import config
+import utils
 
 import torch
 import os
@@ -213,3 +214,68 @@ class WGANModel(object):
             return Variable(arg).cuda(self.device)
         else:
             return Variable(arg)
+    
+    def test_file_hdf5(self, file_name, singer_name):
+        """
+        Function to extract multi pitch from file. Currently supports only HDF5 files.
+        """
+        feats, f0_nor, pho_target = self.read_hdf5_file(file_name)
+        singer_index = config.singers.index(singer_name)
+        out_feats = self.process_file(f0_nor, pho_target, singer_index)
+        utils.plot_features(feats, out_feats)
+        singer = str(singer_index)
+        out_featss = np.concatenate((out_feats[:feats.shape[0]], feats[:out_feats.shape[0],-2:]), axis = -1)
+        utils.feats_to_audio(out_featss,file_name[:-4]+singer+'output') 
+        utils.feats_to_audio(feats,file_name[:-4]+'ground_truth') 
+
+
+    def read_hdf5_file(self, file_name):
+        """
+        Function to read and process input file, given name and the synth_mode.
+        Returns features for the file based on mode (0 for hdf5 file, 1 for wav file).
+        Currently, only the HDF5 version is implemented.
+        """
+        # if file_name.endswith('.hdf5'):
+        stat_file = h5py.File(config.stat_dir+'stats.hdf5', mode='r')
+
+        max_feat = np.array(stat_file["feats_maximus"])
+        min_feat = np.array(stat_file["feats_minimus"])
+        stat_file.close()
+
+        with h5py.File(config.voice_dir + file_name) as feat_file:
+            feats = np.array(feat_file['feats'])[()]
+            pho_target = np.array(feat_file["phonemes"])[()]
+
+        f0 = feats[:,-2]
+        med = np.median(f0[f0 > 0])
+        f0[f0==0] = med
+        f0_nor = (f0 - min_feat[-2])/(max_feat[-2]-min_feat[-2])
+
+        return feats, f0_nor, pho_target
+
+
+    def process_file(self, f0_nor, pho_target, singer_index):
+        stat_file = h5py.File(config.stat_dir+'stats.hdf5', mode='r')
+        max_feat = np.array(stat_file["feats_maximus"])
+        min_feat = np.array(stat_file["feats_minimus"])
+        stat_file.close()
+
+        in_batches_f0, nchunks_in = utils.generate_overlapadd(np.expand_dims(f0_nor, -1))
+        in_batches_pho, nchunks_in_pho = utils.generate_overlapadd(np.expand_dims(pho_target, -1))
+        in_batches_pho = in_batches_pho.reshape([in_batches_pho.shape[0], config.batch_size, config.max_phr_len])
+        out_batches_feats = []
+
+        for in_batch_f0, in_batch_pho in zip(in_batches_f0, in_batches_pho) :
+            speaker = np.repeat(singer_index, config.batch_size)
+            inputs = process_inputs_per_itr(in_batch_f0, in_batch_pho, speaker)
+            input_tensor = self.get_torch_variable(inputs)
+            generated = self.generator(input_tensor)
+            generated_flat = torch.flatten(generated, start_dim=2)
+            out_batches_feats.append(generated_flat.detach().numpy())
+
+        out_batches_feats = np.array(out_batches_feats)
+        out_batches_feats = utils.overlapadd(out_batches_feats,nchunks_in)
+        out_batches_feats = out_batches_feats/2+0.5
+        out_batches_feats = out_batches_feats*(max_feat[:-2] - min_feat[:-2]) + min_feat[:-2]
+
+        return out_batches_feats

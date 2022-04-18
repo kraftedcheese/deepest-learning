@@ -3,3 +3,5 @@ ss_synthesis*
 !stats/stats.hdf5
 __pycache__
 model_save_dir/*
+.history
+val_dir_synth/*
