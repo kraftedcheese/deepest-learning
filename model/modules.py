@@ -127,17 +127,17 @@ class Generator(nn.Module):
         
     def forward(self, x):
         x = self.enc_1(x)
-        print("gen main 1", x.size())
+        # print("gen main 1", x.size())
         x = self.enc_2(x)
-        print("gen main 2", x.size())
+        # print("gen main 2", x.size())
         x = self.enc_3(x)
-        print("gen main 3", x.size())
+        # print("gen main 3", x.size())
         x = self.dec_1(x)
-        print("gen main 4", x.size())
+        # print("gen main 4", x.size())
         x = self.dec_2(x)
-        print("gen main 7", x.size())    
+        # print("gen main 7", x.size())    
         x = self.dec_3(x)
-        print("gen main 8", x.size())
+        # print("gen main 8", x.size())
 
         return x
 
@@ -175,12 +175,12 @@ class Discriminator(nn.Module):
 
     def forward(self, x):
         x = self.d2(x)
-        print("dis 2", x.size())
+        # print("dis 2", x.size())
         x = self.d3(x)
-        print("dis 3", x.size())
+        # print("dis 3", x.size())
         x = self.d4(x)
-        print("dis 4", x.size())
+        # print("dis 4", x.size())
         x = self.d5(x)
-        print("dis 5", x.size())
+        # print("dis 5", x.size())
 
         return x
