@@ -34,10 +34,12 @@ def make_one_hot_vector(inp, max_index=config.num_phos):
 def process_inputs_per_itr(f0, phos, singer_label):
     # f0 = torch.tensor(f0).float().view(config.batch_size, -1)
     # f0 = torch.tensor(f0).float().reshape(config.batch_size, -1)
-    f0 = torch.tensor(f0).float()
-    phos = torch.unsqueeze(torch.tensor(phos).float(),2)
-    singer_label = torch.unsqueeze(torch.tensor(singer_label),1)
-    print("f0", f0.size(), "phos",phos.size(),"singer_label", singer_label.size())
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    f0 = torch.tensor(f0).float().to(device)
+    phos = torch.unsqueeze(torch.tensor(phos).float().to(device),2)
+    singer_label = torch.unsqueeze(torch.tensor(singer_label).to(device),1)
+    # print("f0", f0.size(), "phos",phos.size(),"singer_label", singer_label.size())
 
     process_data_mod = ProcessDataModel(int(f0.shape[2]), config.filters, f0.shape[1])
 

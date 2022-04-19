@@ -1,0 +1,8 @@
+librosa==0.8.1
+torch==1.10.2
+pandas
+torchvision
+h5py
+argparse
+pyworld
+pysptk
