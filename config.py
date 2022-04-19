@@ -112,8 +112,8 @@ rec_field = 2**wavenet_layers
 wavenet_filters = 64
 
 print_every = 1
-save_every = 50
-validate_every = 20 
+save_every = 10
+validate_every = 10
 
 use_gan = False
 gan_lr = 0.001
@@ -126,9 +126,8 @@ learning_rate = 1000
 
 # Steps
 lr_update_step =10
-model_save_step = 50
 sample_step = 50
-n_critic = 100
+n_critic = 15
 
 # Directories
 log_dir = "log_dir"

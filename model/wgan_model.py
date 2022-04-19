@@ -3,7 +3,6 @@ python main.py
 '''
 #imports
 
-from imp import reload
 from model.process_data_model import process_inputs_per_itr
 from model.modules import Generator, Discriminator
 from data_gen_testing import data_gen
@@ -31,7 +30,7 @@ class WGANModel(object):
         # self.num_iters_decay = config.num_iters_decay
         self.learning_rate = 5e-5
         # Number of times to train the critic
-        self.n_critic = config.batch_size
+        self.n_critic = config.n_critic
 
         # processing
         self.cuda = torch.cuda.is_available()
@@ -45,7 +44,6 @@ class WGANModel(object):
         # Step sizes
         self.log_step = config.log_step
         self.sample_step = config.sample_step
-        self.model_save_step = config.model_save_step
         self.lr_update_step = config.lr_update_step
 
         # Gradient Stuff
@@ -86,14 +84,13 @@ class WGANModel(object):
        
         self.generator.load_state_dict(torch.load(g_path, map_location=lambda storage, loc: storage))
         self.discriminator.load_state_dict(torch.load(d_path, map_location=lambda storage, loc: storage))
-        self.start_batch = itr
+        self.start_batch = itr+1
 
     def reset_grad(self):
         self.g_optimizer.zero_grad()
         self.d_optimizer.zero_grad()
   
     def train(self):
-        self.data = self.get_infinity_batch_data()
         one = torch.tensor(1, dtype=torch.float)
         mone = one * -1
         if self.cuda:
@@ -101,71 +98,75 @@ class WGANModel(object):
             mone = mone.cuda(self.device)
         
         for batch in range(self.start_batch, config.num_epochs):
-            # Requires grad, Generator requires_grad = False
-            for param in self.discriminator.parameters():
-                param.requires_grad = True 
+            self.data = self.get_batch_data()
+            print("Starting epoch", batch)
 
-            self.discriminator.zero_grad()
+            for itr_data in self.data:
+                # Requires grad, Generator requires_grad = False
+                for param in self.discriminator.parameters():
+                    param.requires_grad = True 
 
-            print("Getting data...")
-            itr_data = self.data.__next__()
+                self.discriminator.zero_grad()
 
-            for critic_itr in range(self.n_critic):
-                print("epoch",batch,"critic itr:", critic_itr)
-                # fake_raw_inputs = torch.rand((self.batch_size, config.filters, 1, 1))
-                # real_raw_inputs, fake_raw_inputs = self.get_torch_variable(itr_data), self.get_torch_variable(fake_raw_inputs)
-                real_raw_inputs = self.get_torch_variable(itr_data)
-                print("real_raw_input:", real_raw_inputs.size())
+                print("Getting data...")
                 
-                # Train discriminator with real inputs
-                d_loss_real = self.discriminator(real_raw_inputs.data)
-                d_loss_real = d_loss_real.mean()
-                d_loss_real.backward(mone)
 
-                print("first pass through discriminator:", d_loss_real)
+                for critic_itr in range(self.n_critic):
+                    # print("epoch",batch,"critic itr:", critic_itr)
+                    # fake_raw_inputs = torch.rand((self.batch_size, config.filters, 1, 1))
+                    # real_raw_inputs, fake_raw_inputs = self.get_torch_variable(itr_data), self.get_torch_variable(fake_raw_inputs)
+                    real_raw_inputs = self.get_torch_variable(itr_data)
+                    # print("real_raw_input:", real_raw_inputs.size())
+                    
+                    # Train discriminator with real inputs
+                    d_loss_real = self.discriminator(real_raw_inputs.data)
+                    d_loss_real = d_loss_real.mean()
+                    d_loss_real.backward(mone)
+
+                    # print("first pass through discriminator:", d_loss_real)
+
+                    # Generate fake inputs
+                    fake_inputs = self.generator(real_raw_inputs)
+                    # print("output of generator size:",fake_inputs.size())
+
+                    # Train discriminator on fake inputs
+                    d_loss_fake = self.discriminator(fake_inputs)
+                    d_loss_fake = d_loss_fake.mean()
+                    d_loss_fake.backward(one)
+
+                    # Train with gradient penalty
+                    gradient_penalty = self.calculate_gradient_penalty(real_raw_inputs, fake_inputs.data)
+                    gradient_penalty.backward()
+                    d_loss = d_loss_fake - d_loss_real + gradient_penalty
+                    Wasserstein_D = d_loss_real - d_loss_fake
+                    self.d_optimizer.step()
+                    print(f'Critic Training Batch: {batch}, Itr: {critic_itr}, loss_fake: {d_loss_fake}, loss_real: {d_loss_real}, Wasserstein_D: {Wasserstein_D}')
+
+
+                for param in self.discriminator.parameters():
+                    param.requires_grad = False 
+
+                self.generator.zero_grad()
+                # train generator
+                # compute loss with fake images
 
                 # Generate fake inputs
                 fake_inputs = self.generator(real_raw_inputs)
-                print("output of generator size:",fake_inputs.size())
+                g_loss = self.discriminator(fake_inputs)
+                g_loss = g_loss.mean()
+                g_loss.backward(mone)
+                g_cost = -g_loss
+                self.g_optimizer.step()
+                print(f'Generator Training Itr: {batch}, g_loss: {g_loss}')
 
-                # Train discriminator on fake inputs
-                d_loss_fake = self.discriminator(fake_inputs)
-                d_loss_fake = d_loss_fake.mean()
-                d_loss_fake.backward(one)
-
-                # Train with gradient penalty
-                gradient_penalty = self.calculate_gradient_penalty(real_raw_inputs, fake_inputs.data)
-                gradient_penalty.backward()
-                d_loss = d_loss_fake - d_loss_real + gradient_penalty
-                Wasserstein_D = d_loss_real - d_loss_fake
-                self.d_optimizer.step()
-                print(f'Critic Training Batch: {batch}, Itr: {critic_itr}, loss_fake: {d_loss_fake}, loss_real: {d_loss_real}, Wasserstein_D: {Wasserstein_D}')
-
-
-            for param in self.discriminator.parameters():
-                param.requires_grad = False 
-
-            self.generator.zero_grad()
-            # train generator
-            # compute loss with fake images
-
-            # Generate fake inputs
-            fake_inputs = self.generator(real_raw_inputs)
-            g_loss = self.discriminator(fake_inputs)
-            g_loss = g_loss.mean()
-            g_loss.backward(mone)
-            g_cost = -g_loss
-            self.g_optimizer.step()
-            print(f'Generator Training Itr: {batch}, g_loss: {g_loss}')
-
-            if (batch + 1) % config.save_every == 0:
-                self.save_model(batch)
-                
-            if batch % config.validate_every == 0:
-                val_data = self.get_torch_variable(self.data.__next__())
-                val_loss = self.discriminator(val_data)
-                val_loss = val_loss.mean()
-                print(f'Doing validation: {batch}, val_loss: {val_loss}')
+                if (batch + 1) % config.save_every == 0:
+                    self.save_model(batch)
+                    
+                if (batch+1) % config.validate_every == 0:
+                    val_data = self.get_torch_variable(self.data.__next__())
+                    val_loss = self.discriminator(val_data)
+                    val_loss = val_loss.mean()
+                    print(f'Doing validation: {batch}, val_loss: {val_loss}')
     
     # I did not write this, I am still trying to understand the math
     def calculate_gradient_penalty(self, real_images, fake_images):
@@ -176,7 +177,7 @@ class WGANModel(object):
         else:
             eta = eta
         
-        print("calculate grad penalty", "real_images", real_images.size(), "fake_images", fake_images.size())
+        # print("calculate grad penalty", "real_images", real_images.size(), "fake_images", fake_images.size())
 
         interpolated = eta * real_images + ((1 - eta) * fake_images)
 
@@ -202,12 +203,11 @@ class WGANModel(object):
         return grad_penalty
 
 
-    def get_infinity_batch_data(self):
-        while True:
-            for feats_targs, targets_f0_1, pho_targs, targets_singers in data_gen(self.voc_list):
-                print("feats_targs",feats_targs.shape)
-                concated_data = process_inputs_per_itr(targets_f0_1, pho_targs, targets_singers)
-                yield concated_data
+    def get_batch_data(self):
+        for feats_targs, targets_f0_1, pho_targs, targets_singers in data_gen(self.voc_list):
+            print("feats_targs",feats_targs.shape)
+            concated_data = process_inputs_per_itr(targets_f0_1, pho_targs, targets_singers)
+            yield concated_data
 
     def get_torch_variable(self, arg):
         if self.cuda:

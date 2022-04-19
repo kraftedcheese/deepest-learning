@@ -14,12 +14,13 @@ class ProcessDataModel(nn.Module):
         self.linear_layer = nn.Linear(in_features=dim_in, out_features=dim_out)
         nn.init.normal_(self.linear_layer.weight, std=0.02)
         self.batch_norm = nn.BatchNorm2d(batch_norm_channels)
+        self.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
 
     def forward(self, x):
         output = self.linear_layer(x)
         # output = output.reshape(config.batch_size, config.filters, , 1)
         output = torch.unsqueeze(output,3)
-        print("output linear", output.size())
+        # print("output linear", output.size())
         output = self.batch_norm(output)
         return output
 
@@ -47,13 +48,13 @@ def process_inputs_per_itr(f0, phos, singer_label):
     phos = process_data_mod(phos)
     
     # singer_label = singer_label.view(-1, 1).tile((1,config.max_phr_len)).float()
-    singer_label = singer_label.tile((1,config.max_phr_len)).float()
+    singer_label = singer_label.repeat((1,config.max_phr_len)).float()
     singer_label = torch.unsqueeze(singer_label,2)
     singer_label = process_data_mod(singer_label)
 
     # TODO: cat which dim
     inputs = torch.cat((f0, phos, singer_label), 2)
-    print("inputs cat", inputs.size())
+    # print("inputs cat", inputs.size())
 
     # inputs = inputs.view(config.batch_size,-1)
     inputs = inputs.reshape(inputs.shape[0],inputs.shape[1],inputs.shape[2])
@@ -61,7 +62,7 @@ def process_inputs_per_itr(f0, phos, singer_label):
 
     process_input_mod = ProcessDataModel(int(inputs.shape[2]), config.filters, inputs.shape[1])
     inputs = process_input_mod(inputs)
-    print("process_input_mod inputs", inputs.size())
+    # print("process_input_mod inputs", inputs.size())
 
     return inputs
 
