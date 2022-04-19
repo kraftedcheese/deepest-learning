@@ -5,5 +5,5 @@ torchvision
 h5py
 argparse
 pyworld
-matplotlib.pyplot==3.4.3
 pandas==1.3.4
+pysptk
