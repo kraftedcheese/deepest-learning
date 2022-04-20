@@ -1,9 +1,8 @@
 librosa==0.8.1
 torch==1.10.2
-pandas==1.1.5
+pandas
 torchvision
 h5py
 argparse
 pyworld
-pandas==1.3.4
 pysptk
