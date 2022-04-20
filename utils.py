@@ -6,7 +6,7 @@ from scipy.stats import norm
 import pyworld as pw
 import matplotlib.pyplot as plt
 from conversions import spectrogram_to_mel_freq_spectral_coefficent as sp_to_mfsc, spectrogram_to_mel_generalized_cepstral as sp_to_mgc, mel_generalized_cepstral_to_spectrogram as mgc_to_sp,mel_freq_spectral_coefficent_to_mel_generalized_cepstral as mfsc_to_mgc
-from vocoder import extract_sp_world, extract_ap_world, gen_wave_world
+
 # from acoufe import pitch
 import librosa
 from tqdm import tqdm
