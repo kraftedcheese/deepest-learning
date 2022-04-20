@@ -42,7 +42,6 @@ class WGANModel(object):
 
         # Step sizes
         self.log_step = config.log_step
-        self.sample_step = config.sample_step
         self.lr_update_step = config.lr_update_step
 
         # Gradient Stuff

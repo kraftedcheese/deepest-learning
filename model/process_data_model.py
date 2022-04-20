@@ -37,9 +37,9 @@ def process_inputs_per_itr(f0, phos, singer_label):
     # f0 = torch.tensor(f0).float().reshape(config.batch_size, -1)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    f0 = torch.tensor(f0).float().cuda(device)
-    phos = torch.unsqueeze(torch.tensor(phos).float().cuda(device),2)
-    singer_label = torch.unsqueeze(torch.tensor(singer_label).cuda(device),1)
+    f0 = torch.tensor(f0).float().to(device)
+    phos = torch.unsqueeze(torch.tensor(phos).float().to(device),2)
+    singer_label = torch.unsqueeze(torch.tensor(singer_label).to(device),1)
     # print("f0", f0.size(), "phos",phos.size(),"singer_label", singer_label.size())
 
     process_data_mod = ProcessDataModel(int(f0.shape[2]), config.filters, f0.shape[1])
