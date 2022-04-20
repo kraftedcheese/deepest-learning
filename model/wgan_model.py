@@ -37,7 +37,6 @@ class WGANModel(object):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         # Output directories
-        self.log_dir = config.log_dir
         self.sample_dir = config.sample_dir
         self.model_save_dir = config.model_save_dir
 

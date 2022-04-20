@@ -17,8 +17,6 @@ log_dir = './log/'
 
 data_log = './log/data_log.log'
 
-
-
 stat_dir = './stats/'
 
 val_dir = './val_dir_synth/'
