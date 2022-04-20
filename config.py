@@ -78,7 +78,6 @@ hoptime = 5.80498866
 #Steps
 save_every = 10
 validate_every = 10
-lr_update_step = 10
 n_critic = 15
 
 # Directories
@@ -86,9 +85,7 @@ NUS_DIR = "./datasets/nus-smc-corpus_48/"
 voice_dir = "./ss_synthesis/voice/"
 stat_dir = "./stats/"
 val_dir = "./val_dir_synth/"
-log_step = 10
 model_save_dir = "model_save_dir"
-sample_dir = "sample_dir"
 
 # Conversion Parameters
 noise_floor_db = -120.0

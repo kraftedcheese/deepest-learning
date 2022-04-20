@@ -1,7 +1,5 @@
 import config
 
-
-import torch
 import torch.nn as nn
 
 CONV_STRIDE = 2
@@ -82,6 +80,7 @@ class Generator(nn.Module):
     def __init__(self):
         super().__init__()
 
+        # Encoder
         self.enc_1 =  EncoderConvBlock(dim_in=config.conv_filters,
                                 dim_out=256,
                                 kernel_size=CONV_KERNEL_SIZE,
@@ -102,9 +101,8 @@ class Generator(nn.Module):
                                 stride=CONV_STRIDE,
                                 padding=CONV_PADDING,
                                 bias=False)
-        
-
        
+        # Decoder
         self.dec_1 =     DecoderConvBlock(dim_in=1024,
                                 dim_out=512,
                                 kernel_size=CONV_KERNEL_SIZE,
@@ -126,48 +124,40 @@ class Generator(nn.Module):
                                 bias=False)
         
     def forward(self, x):
-        print("input to generator", x.size())
+        # Layers are separated for easier debugging
         x = self.enc_1(x)
-        print("gen main 1", x.size())
         x = self.enc_2(x)
-        print("gen main 2", x.size())
         x = self.enc_3(x)
-        print("gen main 3", x.size())
         x = self.dec_1(x)
-        print("gen main 4", x.size())
         x = self.dec_2(x)
-        print("gen main 7", x.size())    
         x = self.dec_3(x)
-        print("gen main 8", x.size())
-
         return x
 
 class Discriminator(nn.Module):
     def __init__(self):
         super().__init__()
-
-        self.d2 =    DiscriminatorConvBlock(dim_in=config.conv_filters,
+        self.d1 =    DiscriminatorConvBlock(dim_in=config.conv_filters,
                                 dim_out=256,
                                 kernel_size=CONV_KERNEL_SIZE,
                                 stride=CONV_STRIDE,
                                 padding=CONV_PADDING,
                                 bias=False)
 
-        self.d3=    DiscriminatorConvBlock(dim_in=256,
+        self.d2=    DiscriminatorConvBlock(dim_in=256,
                                 dim_out=512,
                                 kernel_size=CONV_KERNEL_SIZE,
                                 stride=CONV_STRIDE,
                                 padding=CONV_PADDING,
                                 bias=False)
 
-        self.d4=    DiscriminatorConvBlock(dim_in=512,
+        self.d3=    DiscriminatorConvBlock(dim_in=512,
                                 dim_out=1024,
                                 kernel_size=CONV_KERNEL_SIZE,
                                 stride=CONV_STRIDE,
                                 padding=CONV_PADDING,
                                 bias=False)
         # final conv layer 
-        self.d5 = nn.Conv2d(in_channels=1024,
+        self.d4 = nn.Conv2d(in_channels=1024,
                     out_channels=1,
                     kernel_size=1,
                     stride=1,
@@ -175,14 +165,9 @@ class Discriminator(nn.Module):
                     bias=False)
 
     def forward(self, x):
-        print("input to discriminator")
+        # Layers are separated for easier debugging
+        x = self.d1(x)
         x = self.d2(x)
-        print("dis 2", x.size())
         x = self.d3(x)
-        print("dis 3", x.size())
         x = self.d4(x)
-        print("dis 4", x.size())
-        x = self.d5(x)
-        print("dis 5", x.size())
-
         return x

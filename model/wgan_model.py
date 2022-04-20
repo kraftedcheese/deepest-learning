@@ -1,8 +1,3 @@
-'''
-python main.py
-'''
-#imports
-
 from model.process_data_model import process_inputs_per_itr
 from model.modules import Generator, Discriminator
 from data_gen_testing import data_gen
@@ -12,40 +7,31 @@ import utils
 
 import torch
 import os
-from torch.autograd import Variable, grad
 import h5py
 import numpy as np
 
+from torch.autograd import Variable, grad
 
-# Model
 class WGANModel(object):
-    def __init__(self, voc_list, reload_model, test_loader=None):
-        # Data loader.
-        self.test_loader = test_loader
+    def __init__(self, voc_list, reload_model):
+        # Data loader Necessities
         self.voc_list = voc_list
 
-        # Training configurations.
+        # Training configs
         self.batch_size = config.batch_size
         self.start_batch = 0
-        # self.num_iters_decay = config.num_iters_decay
         self.learning_rate = 5e-5
         # Number of times to train the critic
         self.n_critic = config.n_critic
+        # Gradient Training
+        self.lambda_term = 10
 
-        # processing
+        # Cuda
         self.cuda = torch.cuda.is_available()
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         # Output directories
-        self.sample_dir = config.sample_dir
         self.model_save_dir = config.model_save_dir
-
-        # Step sizes
-        self.log_step = config.log_step
-        self.lr_update_step = config.lr_update_step
-
-        # Gradient Stuff
-        self.lambda_term = 10
 
         self.init_gan_blocks(reload_model)
 
@@ -63,6 +49,7 @@ class WGANModel(object):
         self.generator.to(self.device)
         self.discriminator.to(self.device)
     
+    # Save the model as checkpoints
     def save_model(self, itr):
         print("saving model, itr:", itr)
         g_path = os.path.join(self.model_save_dir, '{}-G.ckpt'.format(itr))
@@ -75,6 +62,9 @@ class WGANModel(object):
         torch.save(self.discriminator.state_dict(), d_path)
         print('Saved model checkpoints into {}...'.format(self.model_save_dir))
 
+    # Restore the model 
+    # Note that itr is the value of the last checkpoint file
+    # The new starting epoch is (itr + 1) 
     def restore_model(self, itr):
         print('Restore the trained models')
         g_path = os.path.join(self.model_save_dir, '{}-G.ckpt'.format(itr))
@@ -83,14 +73,13 @@ class WGANModel(object):
         self.generator.load_state_dict(torch.load(g_path, map_location=lambda storage, loc: storage))
         self.discriminator.load_state_dict(torch.load(d_path, map_location=lambda storage, loc: storage))
         self.start_batch = itr+1
-
-    def reset_grad(self):
-        self.g_optimizer.zero_grad()
-        self.d_optimizer.zero_grad()
   
+    # Main train function
     def train(self):
+        # Helper tensors 
         one = torch.tensor(1, dtype=torch.float)
         mone = one * -1
+
         if self.cuda:
             one = one.to(self.device)
             mone = mone.to(self.device)
@@ -108,45 +97,45 @@ class WGANModel(object):
 
                 print("Getting data...")
                 
-
+                # Train the critic
                 for critic_itr in range(self.n_critic):
-                    # print("epoch",batch,"critic itr:", critic_itr)
-                    # fake_raw_inputs = torch.rand((self.batch_size, config.filters, 1, 1))
-                    # real_raw_inputs, fake_raw_inputs = self.get_torch_variable(itr_data), self.get_torch_variable(fake_raw_inputs)
                     real_raw_inputs = self.get_torch_variable(itr_data)
-                    # print("real_raw_input:", real_raw_inputs.size())
                     
                     # Train discriminator with real inputs
-                    d_loss_real = self.discriminator(real_raw_inputs.data)
-                    d_loss_real = d_loss_real.mean()
-                    d_loss_real.backward(mone)
-
-                    # print("first pass through discriminator:", d_loss_real)
+                    discriminator_loss_real = self.discriminator(real_raw_inputs.data)
+                    discriminator_loss_real = discriminator_loss_real.mean()
+                    discriminator_loss_real.backward(mone)
 
                     # Generate fake inputs
                     fake_inputs = self.generator(real_raw_inputs)
-                    # print("output of generator size:",fake_inputs.size())
 
                     # Train discriminator on fake inputs
-                    d_loss_fake = self.discriminator(fake_inputs)
-                    d_loss_fake = d_loss_fake.mean()
-                    d_loss_fake.backward(one)
+                    discriminator_loss_fake = self.discriminator(fake_inputs)
+                    discriminator_loss_fake = discriminator_loss_fake.mean()
+                    discriminator_loss_fake.backward(one)
 
                     # Train with gradient penalty
                     gradient_penalty = self.calculate_gradient_penalty(real_raw_inputs, fake_inputs.data)
                     gradient_penalty.backward()
-                    d_loss = d_loss_fake - d_loss_real + gradient_penalty
-                    Wasserstein_D = d_loss_real - d_loss_fake
+
+                    discriminator_loss = discriminator_loss_fake - discriminator_loss_real + gradient_penalty
+                    Wasserstein_D = discriminator_loss_real - discriminator_loss_fake
+
                     self.d_optimizer.step()
-                    print(f'Critic Training Batch: {batch}, Itr: {critic_itr}, loss_fake: {d_loss_fake}, loss_real: {d_loss_real}, Wasserstein_D: {Wasserstein_D}')
+                    print(
+                        "Critic Training Batch", batch, 
+                        ", Itr:", critic_itr,
+                        ", loss_fake:", discriminator_loss_fake,
+                        ", loss_real: ", discriminator_loss_real,
+                        ", Wasserstein_D:", Wasserstein_D
+                    )
 
-
+                # Start training for the generator
+                # Do not train the discriminator 
                 for param in self.discriminator.parameters():
                     param.requires_grad = False 
 
                 self.generator.zero_grad()
-                # train generator
-                # compute loss with fake images
 
                 # Generate fake inputs
                 fake_inputs = self.generator(real_raw_inputs)
@@ -155,7 +144,8 @@ class WGANModel(object):
                 g_loss.backward(mone)
                 g_cost = -g_loss
                 self.g_optimizer.step()
-                print(f'Generator Training Itr: {batch}, g_loss: {g_loss}')
+
+                print("Generator Training Itr:", batch, ", g_loss:", g_loss)
 
                 if (batch + 1) % config.save_every == 0:
                     self.save_model(batch)
@@ -164,9 +154,9 @@ class WGANModel(object):
                     val_data = self.get_torch_variable(self.data.__next__())
                     val_loss = self.discriminator(val_data)
                     val_loss = val_loss.mean()
-                    print(f'Doing validation: {batch}, val_loss: {val_loss}')
+                    print("Validation:", batch, ", val_loss:", val_loss)
     
-    # I did not write this, I am still trying to understand the math
+    # I did not write this, I am still trying to understand the math TODO
     def calculate_gradient_penalty(self, real_images, fake_images):
         eta = torch.FloatTensor(self.batch_size,1,1,1).uniform_(0,1).to(self.device)
         eta = eta.expand(self.batch_size, real_images.size(1), real_images.size(2), real_images.size(3))
@@ -175,8 +165,6 @@ class WGANModel(object):
         else:
             eta = eta
         
-        # print("calculate grad penalty", "real_images", real_images.size(), "fake_images", fake_images.size())
-
         interpolated = eta * real_images + ((1 - eta) * fake_images)
 
         if self.cuda:
@@ -200,19 +188,21 @@ class WGANModel(object):
         grad_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean() * self.lambda_term
         return grad_penalty
 
-
+    # Get the data to input into the generator and critic. 
     def get_batch_data(self):
         for feats_targs, targets_f0_1, pho_targs, targets_singers in data_gen(self.voc_list):
             print("feats_targs",feats_targs.shape)
             concated_data = process_inputs_per_itr(targets_f0_1, pho_targs, targets_singers)
             yield concated_data
 
+    # Helper function to get variables in cuda/cpu
     def get_torch_variable(self, arg):
         if self.cuda:
             return Variable(arg).to(self.device)
         else:
             return Variable(arg)
     
+    # Convert a hdf5 file to a new generated sound. 
     def test_file_hdf5(self, file_name, singer_name):
         """
         Function to extract multi pitch from file. Currently supports only HDF5 files.
@@ -226,7 +216,7 @@ class WGANModel(object):
         utils.feats_to_audio(out_featss,file_name[:-4]+singer+'output') 
         utils.feats_to_audio(feats,file_name[:-4]+'ground_truth') 
 
-
+    # Helper function to read a hdf5 file.
     def read_hdf5_file(self, file_name):
         """
         Function to read and process input file, given name and the synth_mode.
@@ -251,7 +241,7 @@ class WGANModel(object):
 
         return feats, f0_nor, pho_target
 
-
+    # Helper function to process a file.
     def process_file(self, f0_nor, pho_target, singer_index):
         stat_file = h5py.File(config.stat_dir+'stats.hdf5', mode='r')
         max_feat = np.array(stat_file["feats_maximus"])
