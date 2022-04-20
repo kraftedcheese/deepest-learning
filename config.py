@@ -99,7 +99,7 @@ EPOCH_KEY = "epoch"
 LOSS_FAKE_KEY = 'loss_fake'
 LOSS_REAL_KEY = 'loss_real'
 DISCRIMINATOR_LOSS_KEY ="discriminator_loss"
-W_D_LOSS_KEY = 'wasserstein_D' 
+W_D_KEY = 'wasserstein_D' 
 G_LOSS_KEY = "g_loss"
 
 # Validation Loss Pandas Keys

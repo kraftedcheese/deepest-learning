@@ -75,7 +75,7 @@ class WGANModel(object):
             config.LOSS_FAKE_KEY: loss_fake, 
             config.LOSS_REAL_KEY:loss_real, 
             config.DISCRIMINATOR_LOSS_KEY:discriminator_loss,
-            config.W_D_LOSS_KEY: wasserstein_D, 
+            config.W_D_KEY: wasserstein_D, 
             config.G_LOSS_KEY: g_loss, 
         })
 

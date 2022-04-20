@@ -26,8 +26,8 @@ def plot_loss_graphs(args):
     # Plot for DISCRIMINATOR_LOSS
     save_graph(train_df, config.DISCRIMINATOR_LOSS_KEY)
 
-    # Plot for W_D_LOSS
-    save_graph(train_df, config.W_D_LOSS_KEY)    
+    # Plot for W Distance
+    save_graph(train_df, config.W_D_KEY)    
 
     # Plot for G_LOSS
     save_graph(train_df, config.G_LOSS_KEY)
