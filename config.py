@@ -1,5 +1,4 @@
 # CONFIG VARIABLES
-import tensorflow as tf
 
 SAMPLE_RATE = 44100
 norm_mode_in = "max_min"
