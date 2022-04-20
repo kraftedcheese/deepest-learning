@@ -69,6 +69,7 @@ class DiscriminatorConvBlock(nn.Module):
                                     padding=padding,
                                     bias=bias)
         self.batch_norm = nn.BatchNorm2d(dim_out, affine=True, track_running_stats=True)
+        # InstanceNorm2d TODO try this
         self.relu = nn.LeakyReLU()
 
     def forward(self, x):
@@ -122,7 +123,7 @@ class Generator(nn.Module):
                                 stride=CONV_STRIDE,
                                 padding=CONV_PADDING,
                                 bias=False)
-        
+
     def forward(self, x):
         # Layers are separated for easier debugging
         x = self.enc_1(x)
@@ -156,7 +157,7 @@ class Discriminator(nn.Module):
                                 stride=CONV_STRIDE,
                                 padding=CONV_PADDING,
                                 bias=False)
-        # final conv layer 
+        # final conv layer
         self.d4 = nn.Conv2d(in_channels=1024,
                     out_channels=1,
                     kernel_size=1,

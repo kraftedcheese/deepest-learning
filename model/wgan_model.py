@@ -9,11 +9,12 @@ import torch
 import os
 import h5py
 import numpy as np
+import pandas as pd
 
 from torch.autograd import Variable, grad
 
 class WGANModel(object):
-    def __init__(self, voc_list, reload_model):
+    def __init__(self, voc_list, args):
         # Data loader Necessities
         self.voc_list = voc_list
 
@@ -24,7 +25,7 @@ class WGANModel(object):
         # Number of times to train the critic
         self.n_critic = config.n_critic
         # Gradient Training
-        self.lambda_term = 10
+        self.lambda_gradient_penalty = 10
 
         # Cuda
         self.cuda = torch.cuda.is_available()
@@ -32,8 +33,9 @@ class WGANModel(object):
 
         # Output directories
         self.model_save_dir = config.model_save_dir
+        self.init_log_file(args)
 
-        self.init_gan_blocks(reload_model)
+        self.init_gan_blocks(args.reload_model)
 
     # Init generator and discriminator
     def init_gan_blocks(self, reload_model):
@@ -49,6 +51,65 @@ class WGANModel(object):
         self.generator.to(self.device)
         self.discriminator.to(self.device)
     
+    def init_log_file(self, args):
+        self.log_dir = config.log_dir
+        if not os.path.exists(self.log_dir):
+            os.makedirs(self.log_dir)
+
+        self.train_log_file = os.path.join(self.log_dir, args.train_log_file)
+        self.val_log_file = os.path.join(self.log_dir, args.val_log_file)
+        
+        # Append to the log files if reloading the model.
+        self.truncate_train_log = args.reload_model==0
+        self.truncate_val_log = args.reload_model==0
+
+        # Running list of all losses that have not been saved to the file yet
+        # Note this is a list of dictionaries to be used by pandas.
+        self.train_history = []
+        self.val_history = []
+
+    # Helper function to ensure data sent into the dictionary for pandas is uniform
+    def append_to_train_df(self, epoch, loss_fake, loss_real, discriminator_loss, wasserstein_D, g_loss):
+        self.train_history.append({
+            config.EPOCH_KEY: epoch, 
+            config.LOSS_FAKE_KEY: loss_fake, 
+            config.LOSS_REAL_KEY:loss_real, 
+            config.DISCRIMINATOR_LOSS_KEY:discriminator_loss,
+            config.W_D_LOSS_KEY: wasserstein_D, 
+            config.G_LOSS_KEY: g_loss, 
+        })
+
+    # Flush all training histories to the log file
+    def write_to_train_log(self):
+        print("writing to train log")
+        # Convert training histories to a pandas data frame
+        df = pd.DataFrame(self.train_history)
+        df.to_csv(self.train_log_file, mode='w' if self.truncate_train_log else 'a', header=self.truncate_train_log, index=False)
+        # After the first write, all others should be appends
+        self.truncate_train_log =  False
+
+        # Reset the unsaved history
+        self.train_history = []
+    
+    # Helper function to ensure data sent into the dictionary for pandas is uniform
+    def append_to_val_df(self, epoch, val_loss):
+        self.val_history.append({
+            config.EPOCH_KEY: epoch, 
+            config.VAL_LOSS_KEY: val_loss,
+        })
+
+    # Flush all validation histories to the log file
+    def write_to_val_log(self):
+        print("writing to val log")
+        # Convert training histories to a pandas data frame
+        df = pd.DataFrame(self.val_history)
+        df.to_csv(self.val_log_file, mode='a', header=self.truncate_val_log, index=False)
+        # After the first write, all others should be appends
+        self.truncate_val_log = False
+
+        # Reset the unsaved history
+        self.val_history = []
+
     # Save the model as checkpoints
     def save_model(self, itr):
         print("saving model, itr:", itr)
@@ -79,23 +140,39 @@ class WGANModel(object):
         # Helper tensors 
         one = torch.tensor(1, dtype=torch.float)
         mone = one * -1
-
         if self.cuda:
+            # one = self.get_torch_variable(one)
+            # mone = self.get_torch_variable(mone)            
             one = one.to(self.device)
             mone = mone.to(self.device)
         
-        for batch in range(self.start_batch, config.num_epochs):
+        for epoch in range(self.start_batch, config.num_epochs):
             self.data = self.get_batch_data()
-            print("Starting epoch", batch)
+            print("Starting epoch", epoch)
 
+            # Keep track of losses per epoch
+            running_loss_fake = self.get_torch_variable(torch.tensor(0.0))
+            running_loss_real = self.get_torch_variable(torch.tensor(0.0))
+            running_discriminator_loss = self.get_torch_variable(torch.tensor(0.0))
+            running_wasserstein_D = self.get_torch_variable(torch.tensor(0.0))
+            running_g_loss = self.get_torch_variable(torch.tensor(0.0))
+            
+            validation_data = None
+
+            data_counter = 0
             for itr_data in self.data:
+                # If we need to validate at the end, save one data point
+                if (epoch+1) % config.validate_every == 0 and validation_data is None:
+                    validation_data = torch.clone(itr_data)
+                    itr_data = self.data.__next__()
+
+                data_counter +=1
+
                 # Requires grad, Generator requires_grad = False
                 for param in self.discriminator.parameters():
                     param.requires_grad = True 
 
                 self.discriminator.zero_grad()
-
-                print("Getting data...")
                 
                 # Train the critic
                 for critic_itr in range(self.n_critic):
@@ -115,20 +192,27 @@ class WGANModel(object):
                     discriminator_loss_fake.backward(one)
 
                     # Train with gradient penalty
-                    gradient_penalty = self.calculate_gradient_penalty(real_raw_inputs, fake_inputs.data)
+                    gradient_penalty = self.get_gradient_penalty(real_raw_inputs, fake_inputs.data)
                     gradient_penalty.backward()
 
                     discriminator_loss = discriminator_loss_fake - discriminator_loss_real + gradient_penalty
-                    Wasserstein_D = discriminator_loss_real - discriminator_loss_fake
+                    wasserstein_D = discriminator_loss_real - discriminator_loss_fake
 
                     self.d_optimizer.step()
+                    
                     print(
-                        "Critic Training Batch", batch, 
+                        "Critic Training Batch", epoch,
                         ", Itr:", critic_itr,
-                        ", loss_fake:", discriminator_loss_fake,
-                        ", loss_real: ", discriminator_loss_real,
-                        ", Wasserstein_D:", Wasserstein_D
+                        ", loss_fake:", discriminator_loss_fake.item(),
+                        ", loss_real: ", discriminator_loss_real.item(),
+                        ", discriminator_loss: ", discriminator_loss.item(),
+                        ", wasserstein_D:", wasserstein_D.item(),
                     )
+
+                    running_loss_fake += discriminator_loss_fake
+                    running_loss_real += discriminator_loss_real
+                    running_discriminator_loss += discriminator_loss
+                    running_wasserstein_D += wasserstein_D
 
                 # Start training for the generator
                 # Do not train the discriminator 
@@ -145,53 +229,62 @@ class WGANModel(object):
                 g_cost = -g_loss
                 self.g_optimizer.step()
 
-                print("Generator Training Itr:", batch, ", g_loss:", g_loss)
+                running_g_loss += g_cost
+                print("Generator Training Itr:", epoch, ", g_loss:", g_cost.item())
 
-                if (batch + 1) % config.save_every == 0:
-                    self.save_model(batch)
-                    
-                if (batch+1) % config.validate_every == 0:
-                    val_data = self.get_torch_variable(self.data.__next__())
-                    val_loss = self.discriminator(val_data)
-                    val_loss = val_loss.mean()
-                    print("Validation:", batch, ", val_loss:", val_loss)
+            self.append_to_train_df(
+                epoch=epoch,
+                loss_fake=(running_loss_fake/(data_counter*self.n_critic)).item(), 
+                loss_real=(running_loss_real/(data_counter*self.n_critic)).item(), 
+                discriminator_loss=(running_discriminator_loss/(data_counter*self.n_critic)).item(), 
+                wasserstein_D=(running_wasserstein_D/(data_counter*self.n_critic)).item(), 
+                g_loss=(running_g_loss/data_counter).item(),
+            )
+
+            if (epoch + 1) % config.save_every == 0:
+                self.save_model(epoch)
+                self.write_to_train_log()
+                
+            if (epoch+1) % config.validate_every == 0:
+                val_data = self.get_torch_variable(validation_data)
+                val_loss = self.discriminator(val_data)
+                val_loss = val_loss.mean()
+
+                # Saving validation loss
+                self.append_to_val_df(epoch=epoch, val_loss=val_loss.item())
+                self.write_to_val_log()
+
+                print("Validation:", epoch, ", val_loss:", val_loss)
     
-    # I did not write this, I am still trying to understand the math TODO
-    def calculate_gradient_penalty(self, real_images, fake_images):
-        eta = torch.FloatTensor(self.batch_size,1,1,1).uniform_(0,1).to(self.device)
-        eta = eta.expand(self.batch_size, real_images.size(1), real_images.size(2), real_images.size(3))
-        if self.cuda:
-            eta = eta.to(self.device)
-        else:
-            eta = eta
+    def get_gradient_penalty(self, real_inputs, fake_inputs):
+        # Epsilon from uniform distribution
+        epsilon = self.get_torch_variable(torch.FloatTensor(self.batch_size, 1, 1, 1).uniform_(0, 1))
+        epsilon = epsilon.expand(self.batch_size, real_inputs.size()[1], real_inputs.size()[2], real_inputs.size()[3])
         
-        interpolated = eta * real_images + ((1 - eta) * fake_images)
+        # Calculate interpolation between the real inputs and the fake inputs
+        interpolation = epsilon * real_inputs + (1 - epsilon) * fake_inputs
+        interpolation =  self.get_torch_variable(interpolation)
+        interpolation.requires_grad = True
 
-        if self.cuda:
-            interpolated = interpolated.to(self.device)
-        else:
-            interpolated = interpolated
+        # get the probabilities of the interpolation
+        prob_interpolated = self.discriminator(interpolation)
 
-        # define it to calculate gradient
-        interpolated = Variable(interpolated, requires_grad=True)
+        # calculate gradients
+        grad_outputs = self.get_torch_variable(torch.ones(prob_interpolated.size()))
+        gradients = grad(
+                outputs=prob_interpolated,
+                inputs=interpolation,
+                grad_outputs=grad_outputs,
+                create_graph=True, 
+                retain_graph=True
+            )[0]
 
-        # calculate probability of interpolated examples
-        prob_interpolated = self.discriminator(interpolated)
-
-        # calculate gradients of probabilities with respect to examples
-        gradients = grad(outputs=prob_interpolated, inputs=interpolated,
-                               grad_outputs=torch.ones(
-                                   prob_interpolated.size()).to(self.device) if self.cuda else torch.ones(
-                                   prob_interpolated.size()),
-                               create_graph=True, retain_graph=True)[0]
-
-        grad_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean() * self.lambda_term
-        return grad_penalty
+        # Calc gradient penalty
+        return ((gradients.norm(2, dim=1) - 1) ** 2).mean() * self.lambda_gradient_penalty
 
     # Get the data to input into the generator and critic. 
     def get_batch_data(self):
         for feats_targs, targets_f0_1, pho_targs, targets_singers in data_gen(self.voc_list):
-            print("feats_targs",feats_targs.shape)
             concated_data = process_inputs_per_itr(targets_f0_1, pho_targs, targets_singers)
             yield concated_data
 

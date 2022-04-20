@@ -76,8 +76,8 @@ comp_mode = "mfsc"
 hoptime = 5.80498866
 
 #Steps
-save_every = 10
-validate_every = 10
+save_every = 50
+validate_every = 50
 n_critic = 15
 
 # Directories
@@ -86,6 +86,19 @@ voice_dir = "./ss_synthesis/voice/"
 stat_dir = "./stats/"
 val_dir = "./val_dir_synth/"
 model_save_dir = "model_save_dir"
+log_dir = "log_dir"
+graph_dir = "graph_dir"
 
 # Conversion Parameters
 noise_floor_db = -120.0
+
+# Training Loss Pandas Keys
+EPOCH_KEY = "epoch"
+LOSS_FAKE_KEY = 'loss_fake'
+LOSS_REAL_KEY = 'loss_real'
+DISCRIMINATOR_LOSS_KEY ="discriminator_loss"
+W_D_LOSS_KEY = 'wasserstein_D' 
+G_LOSS_KEY = "g_loss"
+
+# Validation Loss Pandas Keys
+VAL_LOSS_KEY = "val_loss"
