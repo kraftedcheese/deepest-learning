@@ -89,3 +89,6 @@ val_dir = "./val_dir_synth/"
 log_step = 10
 model_save_dir = "model_save_dir"
 sample_dir = "sample_dir"
+
+# Conversion Parameters
+noise_floor_db = -120.0
