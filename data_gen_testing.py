@@ -2,6 +2,7 @@ import config
 import numpy as np
 import h5py
 import json
+import os
 
 # Yields features from test jsons (for testing purposes).
 def data_gen_jsons(file_list, mode="Train", sec_mode=0):
@@ -37,7 +38,10 @@ def data_gen_jsons(file_list, mode="Train", sec_mode=0):
 def data_gen(file_list):
     # Reads in a statistics file that contains the min and max features over entire dataset.
     # Min and max features are needed for normalization.
-    stats = h5py.File(config.stat_dir + "stats.hdf5", mode="r")
+    
+    # TO JEROME, THIS ONE LINE IS OURS
+    stats = h5py.File(os.path.join(config.stat_dir, config.stats_file_name), mode='r')
+
     max_f = np.array(stats["feats_maximus"])
     min_f = np.array(stats["feats_minimus"])
     stats.close()

@@ -18,7 +18,7 @@ def main(args):
         if args.reload_model == 0:
             print("No checkpoint loaded! To evaluate, run main.py --eval y --reload_model \{checkpoint_number\}")
             return
-        model.test_file_hdf5(args.source, args.target)
+        model.generate_sound_from_hdf5(args.source, args.target)
     else:
         model.train()
 

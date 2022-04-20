@@ -232,6 +232,7 @@ class WGANModel(object):
                 running_g_loss += g_cost
                 print("Generator Training Itr:", epoch, ", g_loss:", g_cost.item())
 
+            # Save training loss to local memory
             self.append_to_train_df(
                 epoch=epoch,
                 loss_fake=(running_loss_fake/(data_counter*self.n_critic)).item(), 
@@ -243,6 +244,7 @@ class WGANModel(object):
 
             if (epoch + 1) % config.save_every == 0:
                 self.save_model(epoch)
+                # Flush training loss to disk
                 self.write_to_train_log()
                 
             if (epoch+1) % config.validate_every == 0:
@@ -296,67 +298,79 @@ class WGANModel(object):
             return Variable(arg)
     
     # Convert a hdf5 file to a new generated sound. 
-    def test_file_hdf5(self, file_name, singer_name):
-        """
-        Function to extract multi pitch from file. Currently supports only HDF5 files.
-        """
-        feats, f0_nor, pho_target = self.read_hdf5_file(file_name)
+    def generate_sound_from_hdf5(self, hdf5_file_name, singer_name):
+        # Extract features from file
+        features, f0, phoneme_target = self.extract_hdf5_file_features(hdf5_file_name)
+        # Get index of target singer
         singer_index = config.singers.index(singer_name)
-        out_feats = self.process_file(f0_nor, pho_target, singer_index)
-        utils.plot_features(feats, out_feats)
-        singer = str(singer_index)
-        out_featss = np.concatenate((out_feats[:feats.shape[0]], feats[:out_feats.shape[0],-2:]), axis = -1)
-        utils.feats_to_audio(out_featss,file_name[:-4]+singer+'output') 
-        utils.feats_to_audio(feats,file_name[:-4]+'ground_truth') 
+        # Get the generated features
+        generated_features = self.generate_output_features(f0, phoneme_target, singer_index)
 
-    # Helper function to read a hdf5 file.
-    def read_hdf5_file(self, file_name):
-        """
-        Function to read and process input file, given name and the synth_mode.
-        Returns features for the file based on mode (0 for hdf5 file, 1 for wav file).
-        Currently, only the HDF5 version is implemented.
-        """
-        # if file_name.endswith('.hdf5'):
-        stat_file = h5py.File(config.stat_dir+'stats.hdf5', mode='r')
+        # Plot the features for reference
+        utils.plot_features(features, generated_features)
+        
+        # Convert to sound
+        # remove the extension to get raw file name
+        hdf5_file_name =  hdf5_file_name[:-4]
+        generated_features = np.concatenate(
+            (generated_features[:features.shape[0]], features[:generated_features.shape[0],-2:]), 
+            axis = -1,
+        )
 
-        max_feat = np.array(stat_file["feats_maximus"])
-        min_feat = np.array(stat_file["feats_minimus"])
-        stat_file.close()
+        utils.feats_to_audio(generated_features, hdf5_file_name + str(singer_index) + 'output')
+        utils.feats_to_audio(features, hdf5_file_name + 'ground_truth')
 
-        with h5py.File(config.voice_dir + file_name) as feat_file:
-            feats = np.array(feat_file['feats'])[()]
-            pho_target = np.array(feat_file["phonemes"])[()]
+    # Helper function to extract data from a hdf5 file.
+    def extract_hdf5_file_features(self, hdf5_file_name):
+        max_feat, min_feat = self.get_min_max_stat_feats()
 
-        f0 = feats[:,-2]
+        with h5py.File(os.path.join(config.voice_dir, hdf5_file_name)) as feat_file:
+            features = np.array(feat_file[config.feats_key])[()]
+            phoneme_target = np.array(feat_file[config.phonemes_key])[()]
+
+        # Extract f0 from features specfically
+        f0 = features[:,-2]
+        # Process f0
         med = np.median(f0[f0 > 0])
         f0[f0==0] = med
-        f0_nor = (f0 - min_feat[-2])/(max_feat[-2]-min_feat[-2])
+        f0 = (f0 - min_feat[-2])/(max_feat[-2]-min_feat[-2])
 
-        return feats, f0_nor, pho_target
+        return features, f0, phoneme_target
 
-    # Helper function to process a file.
-    def process_file(self, f0_nor, pho_target, singer_index):
-        stat_file = h5py.File(config.stat_dir+'stats.hdf5', mode='r')
-        max_feat = np.array(stat_file["feats_maximus"])
-        min_feat = np.array(stat_file["feats_minimus"])
-        stat_file.close()
+    # Helper function to generate a new sound given input features
+    def generate_output_features(self, f0, pho_target, singer_index):
+        max_feat, min_feat = self.get_min_max_stat_feats()
+        output_features = []
 
-        in_batches_f0, nchunks_in = utils.generate_overlapadd(np.expand_dims(f0_nor, -1))
-        in_batches_pho, nchunks_in_pho = utils.generate_overlapadd(np.expand_dims(pho_target, -1))
-        in_batches_pho = in_batches_pho.reshape([in_batches_pho.shape[0], config.batch_size, config.max_phr_len])
-        out_batches_feats = []
+        f0_input_batches, num_input_chunks = utils.generate_overlapadd(np.expand_dims(f0, -1))
+        phoneme_input_batches, _ = utils.generate_overlapadd(np.expand_dims(pho_target, -1))
+        phoneme_input_batches = phoneme_input_batches.reshape([phoneme_input_batches.shape[0], config.batch_size, config.max_phr_len])
 
-        for in_batch_f0, in_batch_pho in zip(in_batches_f0, in_batches_pho) :
+        for f0_input_batch, phoneme_input_batch in zip(f0_input_batches, phoneme_input_batches) :
+            # Propagate speaker id through the batch
             speaker = np.repeat(singer_index, config.batch_size)
-            inputs = process_inputs_per_itr(in_batch_f0, in_batch_pho, speaker)
+            
+            # Process data for generator
+            inputs = process_inputs_per_itr(f0_input_batch, phoneme_input_batch, speaker)
             input_tensor = self.get_torch_variable(inputs)
             generated = self.generator(input_tensor)
             generated_flat = torch.flatten(generated, start_dim=2)
-            out_batches_feats.append(generated_flat.detach().numpy())
+            
+            # Only tensors on cpu can be converted to numpy
+            if self.cuda:
+                generated_flat = generated_flat.cpu()
 
-        out_batches_feats = np.array(out_batches_feats)
-        out_batches_feats = utils.overlapadd(out_batches_feats,nchunks_in)
-        out_batches_feats = out_batches_feats/2+0.5
-        out_batches_feats = out_batches_feats*(max_feat[:-2] - min_feat[:-2]) + min_feat[:-2]
+            generated_flat_np = generated_flat.detach().numpy()
+            output_features.append(generated_flat_np)
 
-        return out_batches_feats
+        output_features = np.array(output_features)
+        output_features = utils.overlapadd(output_features, num_input_chunks)
+        return (output_features/2+0.5) *(max_feat[:-2] - min_feat[:-2]) + min_feat[:-2]
+
+    # Helper function to extrac the min and max feats from the stats file
+    def get_min_max_stat_feats(self):
+        stat_file = h5py.File(os.path.join(config.stat_dir, config.stats_file_name), mode='r')
+        max_feat = np.array(stat_file[config.feats_maximus_key])
+        min_feat = np.array(stat_file[config.feats_minimus_key])
+        stat_file.close()
+        return max_feat, min_feat

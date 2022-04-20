@@ -89,6 +89,8 @@ model_save_dir = "model_save_dir"
 log_dir = "log_dir"
 graph_dir = "graph_dir"
 
+stats_file_name = "stats.hdf5"
+
 # Conversion Parameters
 noise_floor_db = -120.0
 
@@ -102,3 +104,10 @@ G_LOSS_KEY = "g_loss"
 
 # Validation Loss Pandas Keys
 VAL_LOSS_KEY = "val_loss"
+
+
+# hdf5 keys 
+feats_maximus_key = "feats_maximus"
+feats_minimus_key = "feats_minimus"
+phonemes_key = "phonemes"
+feats_key = 'feats'
