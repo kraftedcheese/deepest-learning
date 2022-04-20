@@ -92,8 +92,8 @@ class WGANModel(object):
         one = torch.tensor(1, dtype=torch.float)
         mone = one * -1
         if self.cuda:
-            one = one.to(self.device)
-            mone = mone.to(self.device)
+            one = one.cuda(self.device)
+            mone = mone.cuda(self.device)
         
         for batch in range(self.start_batch, config.num_epochs):
             self.data = self.get_batch_data()
@@ -168,10 +168,10 @@ class WGANModel(object):
     
     # I did not write this, I am still trying to understand the math
     def calculate_gradient_penalty(self, real_images, fake_images):
-        eta = torch.FloatTensor(self.batch_size,1,1,1).uniform_(0,1).to(self.device)
+        eta = torch.FloatTensor(self.batch_size,1,1,1).uniform_(0,1).cuda(self.device)
         eta = eta.expand(self.batch_size, real_images.size(1), real_images.size(2), real_images.size(3))
         if self.cuda:
-            eta = eta.to(self.device)
+            eta = eta.cuda(self.device)
         else:
             eta = eta
         
@@ -180,7 +180,7 @@ class WGANModel(object):
         interpolated = eta * real_images + ((1 - eta) * fake_images)
 
         if self.cuda:
-            interpolated = interpolated.to(self.device)
+            interpolated = interpolated.cuda(self.device)
         else:
             interpolated = interpolated
 
@@ -193,7 +193,7 @@ class WGANModel(object):
         # calculate gradients of probabilities with respect to examples
         gradients = grad(outputs=prob_interpolated, inputs=interpolated,
                                grad_outputs=torch.ones(
-                                   prob_interpolated.size()).to(self.device) if self.cuda else torch.ones(
+                                   prob_interpolated.size()).cuda(self.device) if self.cuda else torch.ones(
                                    prob_interpolated.size()),
                                create_graph=True, retain_graph=True)[0]
 
@@ -209,7 +209,7 @@ class WGANModel(object):
 
     def get_torch_variable(self, arg):
         if self.cuda:
-            return Variable(arg).to(self.device)
+            return Variable(arg).cuda(self.device)
         else:
             return Variable(arg)
     

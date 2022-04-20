@@ -43,7 +43,6 @@ def process_inputs_per_itr(f0, phos, singer_label):
     # print("f0", f0.size(), "phos",phos.size(),"singer_label", singer_label.size())
 
     process_data_mod = ProcessDataModel(int(f0.shape[2]), config.filters, f0.shape[1])
-
     f0 = process_data_mod(f0)
     phos = process_data_mod(phos)
     

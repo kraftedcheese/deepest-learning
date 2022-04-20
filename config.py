@@ -1,6 +1,4 @@
 # CONFIG VARIABLES
-import tensorflow as tf
-
 SAMPLE_RATE = 44100
 norm_mode_in = "max_min"
 max_phr_len = 128
@@ -64,6 +62,9 @@ singers = [
     "ZHIY",
 ]
 aug_prob = 0.5
+
+fs = 44100  
+filters = 64
 
 # Hyperparameters
 num_epochs = 950
