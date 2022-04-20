@@ -37,13 +37,11 @@ class WGANModel(object):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         # Output directories
-        self.log_dir = config.log_dir
         self.sample_dir = config.sample_dir
         self.model_save_dir = config.model_save_dir
 
         # Step sizes
         self.log_step = config.log_step
-        self.sample_step = config.sample_step
         self.lr_update_step = config.lr_update_step
 
         # Gradient Stuff

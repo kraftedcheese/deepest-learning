@@ -118,7 +118,7 @@ def main():
         count = 0
 
         for lf in read_wav_files:
-            audio, fs = librosa.core.load(os.path.join(read_dir,lf), sr=config.fs)
+            audio, fs = librosa.core.load(os.path.join(read_dir,lf), sr=config.SAMPLE_RATE)
 
             audio = np.float64(audio)
 

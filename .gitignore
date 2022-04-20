@@ -5,3 +5,4 @@ __pycache__
 model_save_dir/*
 .history
 val_dir_synth/*
+env/

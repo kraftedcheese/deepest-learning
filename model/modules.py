@@ -53,10 +53,10 @@ class FinalGeneratorConvBlock(nn.Module):
                                             stride=stride,
                                             padding=padding,
                                             bias=bias)
-        self.relu = nn.Tanh()
+        self.tanh = nn.Tanh()
 
     def forward(self, x):
-        x = self.relu(self.conv_layer(x))
+        x = self.tanh(self.conv_layer(x))
         return x
 
 
@@ -126,18 +126,19 @@ class Generator(nn.Module):
                                 bias=False)
         
     def forward(self, x):
+        print("input to generator", x.size())
         x = self.enc_1(x)
-        # print("gen main 1", x.size())
+        print("gen main 1", x.size())
         x = self.enc_2(x)
-        # print("gen main 2", x.size())
+        print("gen main 2", x.size())
         x = self.enc_3(x)
-        # print("gen main 3", x.size())
+        print("gen main 3", x.size())
         x = self.dec_1(x)
-        # print("gen main 4", x.size())
+        print("gen main 4", x.size())
         x = self.dec_2(x)
-        # print("gen main 7", x.size())    
+        print("gen main 7", x.size())    
         x = self.dec_3(x)
-        # print("gen main 8", x.size())
+        print("gen main 8", x.size())
 
         return x
 
@@ -174,13 +175,14 @@ class Discriminator(nn.Module):
                     bias=False)
 
     def forward(self, x):
+        print("input to discriminator")
         x = self.d2(x)
-        # print("dis 2", x.size())
+        print("dis 2", x.size())
         x = self.d3(x)
-        # print("dis 3", x.size())
+        print("dis 3", x.size())
         x = self.d4(x)
-        # print("dis 4", x.size())
+        print("dis 4", x.size())
         x = self.d5(x)
-        # print("dis 5", x.size())
+        print("dis 5", x.size())
 
         return x
