@@ -36,6 +36,8 @@ def plot_loss_graphs(args):
     # Plot for VAL_LOSS
     save_graph(val_df, config.VAL_LOSS_KEY)
 
+    print("Graphs saved to:", config.graph_dir)
+
 def save_graph(df, y_axis_key, should_negate=True, y_tick_steps=1):
     graph_path = os.path.join(config.graph_dir, "{}_graph.png".format(y_axis_key))
     if should_negate:
