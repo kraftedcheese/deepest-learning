@@ -66,30 +66,3 @@ if output:
     print ("Merge complete")
 else: 
     print ("Output is None")
-
-
-
-# Overlay sound2 over sound1 at position 0  (use louder instead of sound1 to use the louder version)
-# overlay = sound1.overlay(sound2, position=-1000 )
-
-
-
-
-
-# overlay = sound1.overlay(sound3, position=0)
-
-
-# simple export
-# file_handle = overlay.export("output-15.mp3", format="mp3")
-
-
-
-
-
-
-
-# sound1 = AudioSegment.from_file("jlee-15.wav", format="wav") # guy 
-# sound2 = AudioSegment.from_file("njat-15.wav", format="wav")
-# sound3 = AudioSegment.from_file("pmar-15.wav", format="wav") # girl
-# sound1 6 dB louder
-# louder = sound1 + 10
