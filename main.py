@@ -27,6 +27,7 @@ def argument_parser():
     # For both training and evaluation, pass in --reload_model {checkpoint} to load.
     # The checkpoint file MUST be in model_save_dir.
     parser.add_argument('--reload_model', type=int, default='0')
+    
     # Store the losses for the training, this should be a csv file, choose another file type at your own risk.
     parser.add_argument('--train_log_file', type=str, default='train_log_file.csv')
     parser.add_argument('--val_log_file', type=str, default='val_log_file.csv')
