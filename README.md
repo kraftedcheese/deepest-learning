@@ -2,11 +2,11 @@
 Deep Learning Project Spring 2022
 
 ## Group Members
-Ong Kah Yuan, Joel (1004366)
-Mah Qing Long Hannah Jean (1004332)
-Gwee Yong Ta (1004114)
-Tan Jianhui (1004380)
-Jerome Heng Hao Xiang (1004115)
+- Ong Kah Yuan, Joel (1004366)
+- Mah Qing Long Hannah Jean (1004332)
+- Gwee Yong Ta (1004114)
+- Tan Jianhui (1004380)
+- Jerome Heng Hao Xiang (1004115)
 
 ## Overview
 This approach realises voice to choral conversion by converting a single voice sample to several voice samples with a Wasserstein-GAN and then overlaying them to create a choral output.

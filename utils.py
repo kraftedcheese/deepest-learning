@@ -8,6 +8,7 @@ from conversions import (
     mel_generalized_cepstral_to_spectrogram,
     mel_freq_spectral_coefficent_to_mel_generalized_cepstral,
 )
+
 import config
 
 
@@ -130,7 +131,10 @@ def feats_to_audio(in_feats, filename, fs=config.fs, mode=config.comp_mode):
         fs,
         config.hoptime,
     )
-    sf.write(config.val_dir + filename + ".wav", y, fs)
+
+    sound_file = config.val_dir + filename + ".wav"
+    sf.write(sound_file, y, fs)
+    print("Sound file saved to", sound_file)
 
 
 # Generates overlapping windows for the output synthesis

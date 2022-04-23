@@ -93,7 +93,7 @@ def mel_freq_spectral_coefficent_to_mel_generalized_cepstral(mel_freq_spectral_c
     transformed_mel_freq_cep_coeff = np.atleast_2d(mel_freq_spectral_coefficent)
     ndim = transformed_mel_freq_cep_coeff.shape[1]
 
-    transformed_mel_freq_cep_coeff /= (10*np.log(10))
+    transformed_mel_freq_cep_coeff = transformed_mel_freq_cep_coeff/10*np.log(10)
     concat_mel_freq_cep_coeff = np.concatenate(
         [
             transformed_mel_freq_cep_coeff[:, :],
