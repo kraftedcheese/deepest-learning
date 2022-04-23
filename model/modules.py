@@ -69,7 +69,6 @@ class DiscriminatorConvBlock(nn.Module):
                                     padding=padding,
                                     bias=bias)
         self.batch_norm = nn.BatchNorm2d(dim_out, affine=True, track_running_stats=True)
-        # InstanceNorm2d TODO try this
         self.relu = nn.LeakyReLU()
 
     def forward(self, x):
