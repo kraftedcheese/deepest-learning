@@ -21,6 +21,9 @@ pip install -r requirements.txt
 ```
 
 ## Preprocessing
+Before running the preprocessing script, please ensure that the NUS dataset is found in `datasets/nus-smc-corpus_48`. It can be downloaded from: https://drive.google.com/file/d/1tANy-k3q_vMqFSp6LKoxrm8H6N80xKtD/
+This dataset is not required if the hdf5 files are downloaded and used directly.
+
 The preprocessing script takes in the NUS dataset (which should be in `datasets/nus-smc-corpus_48`) with .wav files and phoneme annotations, extracts features and saves them as a .hdf5 representation. The .hdf files are saved to `ss_synthesis/voice`. 
 
 As preprocessing takes some time, the processed hdf5 files can be downloaded from: https://drive.google.com/file/d/1vcmCYcpNBFDv6y_eD8ZZ8-7jXMyrkbpx/. These should be saved under `ss_synthesis/voice` for training to proceed.
