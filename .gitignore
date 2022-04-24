@@ -1,4 +1,9 @@
-ss_synthesis.zip
+ss_synthesis*
 *.hdf5
 !stats/stats.hdf5
 __pycache__
+model_save_dir/*
+.history
+val_dir_synth/*
+!val_dir_synth/ADIZ_resynthesized.wav
+env/
