@@ -8,11 +8,17 @@ Deep Learning Project Spring 2022
 - Tan Jianhui (1004380)
 - Jerome Heng Hao Xiang (1004115)
 
+## Video Walkthrough
+We have recorded a video walkthrough for installation and running key features, found here: https://www.youtube.com/watch?v=A759oizY2iw
+
 ## Overview
 This approach realises voice to choral conversion by converting a single voice sample to several voice samples with a Wasserstein-GAN and then overlaying them to create a choral output.
 
 ## Requirements
 Please install the required libraries in `requirements.txt`. Do note that the version of pytorch is important if you wish to reload the model using our checkpoints. 
+```
+pip install -r requirements.txt
+```
 
 ## Preprocessing
 The preprocessing script takes in the NUS dataset (which should be in `datasets/nus-smc-corpus_48`) with .wav files and phoneme annotations, extracts features and saves them as a .hdf5 representation. The .hdf files are saved to `ss_synthesis/voice`. 
